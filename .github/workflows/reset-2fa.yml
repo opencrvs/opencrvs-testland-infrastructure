@@ -10,10 +10,10 @@ on:
       environment:
         type: choice
         description: Infrastructure to provision
-        default: "development"
+        default: "qa"
         required: true
         options:
-          - ""
+          - qa
 
 permissions:
   contents: read
