@@ -116,7 +116,7 @@ jobs:
               --values ${{ needs.prepare.outputs.values-file }} \
               --set data_cleanup.enabled=true \
               --set data_seed.enabled=true \
-              --set data_seed.env.ACTIVATE_USERS=${{ vars.ACTIVATE_USERS  || 'false' }} \
+              --set data_seed.env.ACTIVATE_USERS="${{ vars.ACTIVATE_USERS || 'false' }}" \
               --namespace ${namespace} \
               --show-only templates/${{ matrix.job-name }}-job.yaml \
               oci://ghcr.io/opencrvs/opencrvs-services \
