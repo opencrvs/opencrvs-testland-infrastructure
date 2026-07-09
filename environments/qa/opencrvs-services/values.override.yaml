@@ -15,3 +15,14 @@ countryconfig:
     MOSIP_API_USERINFO_URL: https://mosip-api.qa.opencrvs.org/esignet/get-oidp-user-info
     # In E2E environment, minio is shared between all services. STACK is omitted from the path. Differentiation is done by bucket name.
     E2E_MINIO_BASE_URL: https://minio.qa.opencrvs.org
+  secrets:
+    reference-data-db-secret:
+      - REFERENCE_DATA_DATABASE_URL
+
+postgres_on_deploy:
+  secrets:
+    reference-data-db-secret:
+      - REFERENCE_DATA_POSTGRES_USER
+      - REFERENCE_DATA_POSTGRES_PASSWORD
+      - REFERENCE_DATA_EDITOR_USER
+      - REFERENCE_DATA_EDITOR_PASSWORD
