@@ -32,7 +32,7 @@ on:
         default: "development"
         type: choice
         options:
-          - ""
+          - qa-hotfix
 
 env:
   # Assuming chart version matches core image tag
