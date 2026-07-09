@@ -1,0 +1,9 @@
+##################################################################################
+# Environment-specific Helm overrides managed by yarn environment:init
+# Unmanaged keys are preserved when this file is updated.
+##################################################################################
+hostname: qa.opencrvs.org
+
+utilities:
+  image:
+    tag: 35b1e0f

@@ -1,0 +1,28 @@
+##################################################################################
+# Environment-specific Helm overrides managed by yarn environment:init
+# Unmanaged keys are preserved when this file is updated.
+##################################################################################
+hostname: qa.opencrvs.org
+
+countryconfig:
+  image:
+    name: opencrvs-testland
+  env:
+    OPENID_PROVIDER_CLAIMS: name,family_name,given_name,middle_name,birthdate,address
+    OPENID_PROVIDER_CLIENT_ID: mock-client_id
+    # FIXME: In general these values should be passed externally using `--set key=value`
+    ESIGNET_REDIRECT_URL: https://esignet-mock.qa.opencrvs.org/authorize
+    MOSIP_API_USERINFO_URL: https://mosip-api.qa.opencrvs.org/esignet/get-oidp-user-info
+    # In E2E environment, minio is shared between all services. STACK is omitted from the path. Differentiation is done by bucket name.
+    E2E_MINIO_BASE_URL: https://minio.qa.opencrvs.org
+  secrets:
+    reference-data-db-secret:
+      - REFERENCE_DATA_DATABASE_URL
+
+postgres_on_deploy:
+  secrets:
+    reference-data-db-secret:
+      - REFERENCE_DATA_POSTGRES_USER
+      - REFERENCE_DATA_POSTGRES_PASSWORD
+      - REFERENCE_DATA_EDITOR_USER
+      - REFERENCE_DATA_EDITOR_PASSWORD
