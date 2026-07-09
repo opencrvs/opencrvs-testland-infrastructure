@@ -1,0 +1,70 @@
+name: 03. Deploy MOSIP
+run-name: "Deploy MOSIP on ${{ inputs.environment }}"
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - qa
+env:
+  # Assuming chart version matches core image tag
+  MOSIP_CHART_VERSION: "v2.1.0"
+jobs:
+  github-to-k8s-sync-env:
+    uses: ./.github/workflows/github-to-k8s-sync-env.yml
+    with:
+      environment: ${{ inputs.environment }}
+    secrets: inherit
+  deploy:
+    needs: github-to-k8s-sync-env
+    environment: ${{ inputs.environment }}
+    env:
+      ENV: ${{ inputs.environment }}
+      BRANCH: ${{ github.ref_name }}
+      GITHUB_ACTOR: ${{ github.actor }}
+      CORE_IMAGE_TAG: ${{ inputs.core-image-tag }}
+      COUNTRYCONFIG_IMAGE_TAG: ${{ inputs.countryconfig-image-tag }}
+      COUNTRYCONFIG_IMAGE_NAME: ${{ secrets.DOCKERHUB_ACCOUNT || 'opencrvs' }}/${{ secrets.DOCKERHUB_REPO || 'ocrvs-farajaland'}}
+      SENDER_EMAIL_ADDRESS: ${{ secrets.SENDER_EMAIL_ADDRESS }}
+      ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+    runs-on:
+      - self-hosted
+      - k8s
+      - ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Create namespace
+        run: kubectl create namespace "opencrvs-${ENV}" || true
+      - name: Deploy with Helm
+        id: deploy
+        run: |
+          stern -n "opencrvs-${ENV}" \
+            --since 1s \
+            --tail 0 \
+            --exclude 'kube-probe' \
+            --exclude '"level":(30|info)' \
+            --template '{{.PodName}}/{{.ContainerName}} | {{.Message}}{{"\n"}}' \
+            . &
+          STERN_PID=$!
+          helm upgrade --install mosip-api oci://ghcr.io/opencrvs/opencrvs-mosip:${MOSIP_CHART_VERSION} \
+          --namespace "opencrvs-${ENV}" \
+          -f environments/${ENV}/mosip-api/values.yaml \
+          --set hostname=${{ vars.DOMAIN }} \
+          --atomic 2>&1 ; STATUS=$?;
+            kill $STERN_PID 2>/dev/null || true
+            exit $STATUS
+      - name: Cleanup Helm Locks
+        if: failure() || cancelled()
+        run: |
+          kubectl -n "opencrvs-${ENV}" get secrets -l owner=helm -o json | \
+          jq -r '.items[] | select(.metadata.labels.status=="pending-install" or .metadata.labels.status=="pending-upgrade" or .metadata.labels.status=="pending-rollback") | .metadata.name' | \
+          xargs -r kubectl -n "opencrvs-${ENV}" delete secret || \
+          echo "No helm locks found, all is good"
