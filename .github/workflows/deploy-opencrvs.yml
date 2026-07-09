@@ -32,6 +32,7 @@ on:
           - migration-production
           - migration-staging
           - qa
+          - qa-hotfix
 
 env:
   # Assuming chart version matches core image tag

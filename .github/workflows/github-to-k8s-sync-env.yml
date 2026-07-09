@@ -14,6 +14,7 @@ on:
           - migration-production
           - migration-staging
           - qa
+          - qa-hotfix
       namespace_template:
         description: "Secrets mapping template"
         default: "opencrvs"

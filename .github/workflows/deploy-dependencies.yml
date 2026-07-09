@@ -13,6 +13,7 @@ on:
           - migration-production
           - migration-staging
           - qa
+          - qa-hotfix
 env:
   DEPENDENCIES_CHART_VERSION: "v2.2.0"
 permissions:
