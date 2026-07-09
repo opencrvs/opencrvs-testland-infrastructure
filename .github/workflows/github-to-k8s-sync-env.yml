@@ -10,8 +10,7 @@ on:
         default: "development"
         type: choice
         options:
-          - production
-          - stg
+          - qa-hotfix
       namespace_template:
         description: "Secrets mapping template"
         default: "opencrvs"

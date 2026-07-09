@@ -9,9 +9,9 @@ on:
         default: "dev"
         type: choice
         options:
-          - ""
+          - qa-hotfix
 env:
-  DEPENDENCIES_CHART_VERSION: "v1.9.15"
+  DEPENDENCIES_CHART_VERSION: "1.9.15"
   TRAEFIK_CHART_VERSION: "39.0.0"
 jobs:
   approve:

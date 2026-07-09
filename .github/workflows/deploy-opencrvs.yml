@@ -32,11 +32,11 @@ on:
         default: "dev"
         type: choice
         options:
-          - ""
+          - qa-hotfix
 
 env:
   # Assuming chart version matches core image tag
-  OPENCRVS_CHART_VERSION: "v1.9.15"
+  OPENCRVS_CHART_VERSION: "1.9.15"
 jobs:
   approve:
     environment: ${{ inputs.environment }}

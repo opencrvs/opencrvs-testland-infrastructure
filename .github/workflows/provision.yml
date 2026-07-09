@@ -9,7 +9,7 @@ on:
         default: 'dev'
         type: choice
         options:
-          - ""
+
       tags:
         description: 'Tags to apply to the provisioned resources'
         required: true

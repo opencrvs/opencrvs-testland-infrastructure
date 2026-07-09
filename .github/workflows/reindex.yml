@@ -9,7 +9,7 @@ on:
         default: "dev"
         type: choice
         options:
-          - ""
+          - qa-hotfix
   workflow_call:
     inputs:
       environment:
