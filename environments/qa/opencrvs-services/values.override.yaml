@@ -5,6 +5,8 @@
 hostname: qa.opencrvs.org
 
 countryconfig:
+  image:
+    name: opencrvs-testland
   env:
     OPENID_PROVIDER_CLAIMS: name,family_name,given_name,middle_name,birthdate,address
     OPENID_PROVIDER_CLIENT_ID: mock-client_id
