@@ -9,7 +9,7 @@ on:
         default: 'development'
         type: choice
         options:
-          - qa
+          - non-prod
       tags:
         description: 'Tags to apply to the provisioned resources'
         required: true
