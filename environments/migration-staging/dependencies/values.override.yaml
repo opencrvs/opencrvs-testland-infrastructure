@@ -5,3 +5,18 @@
 hostname: migration-staging.opencrvs.dev
 monitoring:
   enabled: false
+
+elasticsearch:
+  host_data_path: /data/migration-staging/elasticsearch
+
+minio:
+  host_data_path: /data/migration-staging/minio
+
+mongodb:
+  host_data_path: /data/migration-staging/mongodb
+
+postgres:
+  host_data_path: /data/migration-staging/postgres
+
+influxdb:
+  host_data_path: /data/migration-staging/influxdb
