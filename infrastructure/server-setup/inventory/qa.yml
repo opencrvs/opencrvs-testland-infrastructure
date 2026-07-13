@@ -17,7 +17,7 @@ all:
 
     # IMPORTANT: If master VM has multiple ethernet interfaces, put private IP address at kube_api_host
     # kube_api_host: 10.10.10.10
-    kube_api_host: 
+    kube_api_host: 10.0.1.3
 
     # Default ansible provision user, keep as is
     ansible_user: provision
@@ -27,7 +27,7 @@ all:
     # Defaults production configuration:
     # - master node
     # - 2 worker nodes
-    single_node: true
+    single_node: false
     ################################################################
     # DON'T MODIFY THIS SECTION BY HANDS
     # Use: yarn environment:users
@@ -99,6 +99,7 @@ all:
           - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEEtz5M5hYKcUehDiCm84BplV+3t1ex8DPjIsMtQEWGv cihan.m.bebek@gmail.com
         state: present
         role: admin
+
   children:
     master:
       hosts:
@@ -113,3 +114,13 @@ all:
             traefik-role: ingress
             # By default all datastores are deployed to node with role data1
             role: data1
+    # Workers section is optional, for single node cluster feel free to remove this section
+    # section can be added later
+    # more workers can be added later as well
+    workers:
+      hosts:
+        worker0:
+          ansible_host: 10.0.1.5
+          labels:
+            # Labels have index + 2 for backward compatibility with existing swarm setup
+            role: data2
