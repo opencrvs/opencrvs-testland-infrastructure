@@ -6,3 +6,18 @@ hostname: qa.opencrvs.dev
 utilities:
   image:
     tag: 35b1e0f
+
+elasticsearch:
+  host_data_path: /data/qa/elasticsearch
+
+minio:
+  host_data_path: /data/qa/minio
+
+mongodb:
+  host_data_path: /data/qa/mongodb
+
+postgres:
+  host_data_path: /data/qa/postgres
+
+influxdb:
+  host_data_path: /data/qa/influxdb
