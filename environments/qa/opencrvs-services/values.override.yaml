@@ -3,25 +3,20 @@
 # Unmanaged keys are preserved when this file is updated.
 ##################################################################################
 hostname: qa.opencrvs.dev
-
 countryconfig:
   image:
     name: opencrvs-testland
   env:
-    # MOSIP Mock
     OPENID_PROVIDER_CLAIMS: name,family_name,given_name,middle_name,birthdate,address
     OPENID_PROVIDER_CLIENT_ID: mock-client_id
     ESIGNET_REDIRECT_URL: https://esignet-mock.qa.opencrvs.dev/authorize
     MOSIP_API_USERINFO_URL: https://mosip-api.qa.opencrvs.dev/esignet/get-oidp-user-info
     E2E_MINIO_BASE_URL: https://minio.qa.opencrvs.dev
-    # Verifiable Credentials
     VERIFIABLE_CREDENTIALS_SDJWT_ISSUE_URL: https://proxy.issuer.opencrvs.dev/openid4vc/sdjwt/issue
     VERIFIABLE_CREDENTIALS_RAW_JWT_SIGN_URL: https://proxy.issuer.opencrvs.dev/raw/jwt/sign
-
   secrets:
     reference-data-db-secret:
       - REFERENCE_DATA_DATABASE_URL
-
 postgres_on_deploy:
   secrets:
     reference-data-db-secret:
