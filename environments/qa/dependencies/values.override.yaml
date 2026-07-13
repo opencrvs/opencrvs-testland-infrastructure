@@ -3,9 +3,6 @@
 # Unmanaged keys are preserved when this file is updated.
 ##################################################################################
 hostname: qa.opencrvs.dev
-utilities:
-  image:
-    tag: 35b1e0f
 
 elasticsearch:
   host_data_path: /data/qa/elasticsearch
@@ -21,3 +18,8 @@ postgres:
 
 influxdb:
   host_data_path: /data/qa/influxdb
+
+# FIXME: Keep this value till first official v2.1.0 release.
+utilities:
+  image:
+    tag: 35b1e0f
