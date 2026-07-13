@@ -9,6 +9,8 @@ on:
         default: "development"
         type: choice
         options:
+          - migration-production
+          - migration-staging
           - qa
 env:
   DEPENDENCIES_CHART_VERSION: "v2.1.0"
