@@ -32,6 +32,8 @@ on:
         default: "development"
         type: choice
         options:
+          - migration-production
+          - migration-staging
           - qa
 
 env:

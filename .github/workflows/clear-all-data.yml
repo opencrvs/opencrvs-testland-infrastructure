@@ -9,6 +9,8 @@ on:
         default: "qa"
         type: choice
         options:
+          - migration-production
+          - migration-staging
           - qa
       data-cleanup-only:
         description: 'Run only the data-cleanup job'
