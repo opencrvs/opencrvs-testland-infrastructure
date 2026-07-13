@@ -10,6 +10,8 @@ on:
         default: "development"
         type: choice
         options:
+          - migration-production
+          - migration-staging
           - qa
       namespace_template:
         description: "Secrets mapping template"

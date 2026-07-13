@@ -13,7 +13,7 @@ on:
         default: "development"
         required: true
         options:
-          - qa
+          - non-prod
 jobs:
   approve:
     environment: ${{ inputs.environment }}
