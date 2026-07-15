@@ -1,0 +1,198 @@
+name: Deploy & run E2E
+run-name: 'E2E by ${{ github.event.client_payload.actor || github.actor }} (core: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }}, testland: ${{ github.event.client_payload.countryconfig-image-tag || inputs.countryconfig-image-tag }})'
+on:
+  repository_dispatch:
+    types: [run_e2e]
+  workflow_dispatch:
+    inputs:
+      core-image-tag:
+        description: Core image tag
+        required: true
+        default: 'v2.1.0'
+      countryconfig-image-tag:
+        description: Your Country Config DockerHub image tag
+        required: true
+        default: 'v2.1.0'
+      countryconfig-branch:
+        description: e2e branch
+        required: false
+        default: 'develop'
+
+concurrency:
+  group: 'e2e'
+  cancel-in-progress: true
+
+env:
+  DOMAIN: ${{ vars.DOMAIN }}
+
+jobs:
+  debug:
+    name: Debug output
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Print Entire Event Payload
+        run: |
+          echo "${{ toJson(github.event) }}"
+  reset-data:
+    uses: ./.github/workflows/clear-all-data.yml
+    with:
+      environment: 'e2e'
+    secrets: inherit
+
+  cache-node-js:
+    name: Cache Node.js dependencies
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: 'opencrvs/opencrvs-testland'
+          fetch-depth: 0
+
+      - name: Checkout country branch
+        run: |
+          git checkout ${{ github.event.client_payload.countryconfig-image-tag || inputs.countryconfig-image-tag }}
+      - name: Set up Node.js from country .nvmrc
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v5
+        id: cache
+        with:
+          path: |
+            node_modules
+            ~/.cache/yarn/v6
+            ~/.cache/ms-playwright
+          key: ${{ github.event.client_payload.countryconfig-image-tag || inputs.countryconfig-image-tag }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install Dependencies
+        uses: nick-fields/retry@v4
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          command: yarn
+      - uses: nick-fields/retry@v4
+        name: Install Playwright Browsers
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          command: npx playwright install --with-deps
+  data-seed:
+    uses: ./.github/workflows/seed-data.yml
+    if: '!cancelled()'
+    needs: reset-data
+    with:
+      environment: 'e2e'
+    secrets: inherit
+  deploy:
+    uses: ./.github/workflows/deploy-opencrvs.yml
+    if: '!cancelled()'
+    needs: 
+      - reset-data
+      - data-seed
+    with:
+      core-image-tag: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }}
+      countryconfig-image-tag: ${{ github.event.client_payload.countryconfig-image-tag || inputs.countryconfig-image-tag }}
+      environment: 'e2e'
+      data-seed-enabled: true
+    secrets: inherit
+
+  test:
+    needs: [debug, deploy, cache-node-js]
+    if: "!cancelled() && needs.deploy.result == 'success'"
+    runs-on: ubuntu-24.04
+    environment: 'e2e'
+    strategy:
+      max-parallel: 15
+      fail-fast: false
+      matrix:
+        shard:
+          [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20
+          ]
+    name: shard-${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: 'opencrvs/opencrvs-testland'
+          fetch-depth: 0
+
+      - name: Checkout country branch
+        run: |
+          git checkout ${{ github.event.client_payload.countryconfig-image-tag || inputs.countryconfig-image-tag }}
+      - name: Set up Node.js from country .nvmrc
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v5
+        id: cache
+        with:
+          path: |
+            node_modules
+            ~/.cache/yarn/v6
+            ~/.cache/ms-playwright
+          key: ${{ github.event.client_payload.countryconfig-image-tag || inputs.countryconfig-image-tag }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install Dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: yarn
+      - uses: nick-fields/retry@v4
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          command: npx playwright install --with-deps
+      - name: Run Playwright Tests
+        run: |
+          export NODE_EXTRA_CA_CERTS=/tmp/letsencrypt-stg-root-x1.pem
+          curl -s -o $NODE_EXTRA_CA_CERTS https://letsencrypt.org/certs/staging/letsencrypt-stg-root-x1.pem
+          npx playwright test --shard=${{ matrix.shard }}/20
+      - id: ctrf_check
+        if: '!cancelled()'
+        run: |
+          [ -d ctrf ] && \
+           echo "ctrf=true" >> $GITHUB_OUTPUT || \
+           echo "ctrf=false" >> $GITHUB_OUTPUT
+      - name: Publish Test Report
+        uses: ctrf-io/github-test-reporter@v1
+        with:
+          report-path: './ctrf/*.json'
+          github-report: true
+          summary-report: true
+          test-report: true
+        if: "!cancelled() && steps.ctrf_check.outputs.ctrf == 'true'"
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v7
+        if: '!cancelled()'
+        with:
+          name: playwright-report-${{ github.event.client_payload.stack || inputs.stack }}-shard-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: playwright-report/
+          retention-days: 30
