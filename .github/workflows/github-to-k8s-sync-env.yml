@@ -10,6 +10,7 @@ on:
         default: "development"
         type: choice
         options:
+          - e2e
           - migration-production
           - migration-staging
           - qa
