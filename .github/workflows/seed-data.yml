@@ -85,7 +85,7 @@ jobs:
       - name: Upload helm release values file /tmp/opencrvs-${{ inputs.environment }}.json
         uses: actions/upload-artifact@v7
         with:
-          name: opencrvs-${{ inputs.environment }}-values-file
+          name: opencrvs-${{ inputs.environment }}-data-seed-values-file
           path: /tmp/opencrvs-${{ inputs.environment }}.json
           retention-days: 1
   seed:
@@ -108,7 +108,7 @@ jobs:
         - name: Download helm release values file into /tmp/opencrvs-${{ inputs.environment }}.json
           uses: actions/download-artifact@v8
           with:
-            name: opencrvs-${{ inputs.environment }}-values-file
+            name: opencrvs-${{ inputs.environment }}-data-seed-values-file
             path: /tmp
         - name: Create job ${{ matrix.job-name }} from helm template and apply it
           run: |
