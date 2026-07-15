@@ -6,19 +6,13 @@ elasticsearch:
   port: 9200
   host: elasticsearch.opencrvs-deps-demo.svc.cluster.local
 
-
 minio:
   auth_mode: use_secret
   host: minio-0.minio.opencrvs-deps-demo.svc.cluster.local
 
-mongodb:
-  auth_mode: auto
-  host: mongodb-0.mongodb.opencrvs-deps-demo.svc.cluster.local
-
 redis:
   auth_mode: use_secret
   host: redis-0.redis.opencrvs-deps-demo.svc.cluster.local
-
 
 resources:
   memoryRequest: "512Mi"

@@ -1,4 +1,4 @@
-- name: 'Precheck if encrypted file system exists so we dont try to bootstrap'
+- name: "Precheck if encrypted file system exists so we dont try to bootstrap"
   stat:
     path: "{{ data_file_path }}"
     get_checksum: False
@@ -29,7 +29,6 @@
     - disk_encryption_key is defined
     - not encryptedFileSystemPreCheck.stat.exists
 
-
 - name: Fail if not enough free space
   fail:
     msg: "Not enough free disk space! Required: {{ required_size_gb }}G, Free: {{ free_disk_size_gb }}G"
@@ -40,7 +39,7 @@
     - not encryptedFileSystemPreCheck.stat.exists
     - free_disk_size_gb | int < required_size_gb | int
 
-- name: 'Bootstrap encrypted data folder'
+- name: "Bootstrap encrypted data folder"
   script: ./files/cryptfs/bootstrap.sh -s {{ encrypted_disk_size }} -p {{ disk_encryption_key }} -f {{ data_file_path }}
   when:
     - disk_encryption_key is defined
@@ -52,7 +51,7 @@
     state: present
   when: disk_encryption_key is defined
 
-- name: 'Register encrypted file system'
+- name: "Register encrypted file system"
   stat:
     path: "{{ data_file_path }}"
     get_checksum: False
@@ -66,7 +65,7 @@
   changed_when: false
   when: disk_encryption_key is defined
 
-- name: 'Mount encrypted data folder'
+- name: "Mount encrypted data folder"
   script: ../cryptfs/mount.sh -p {{ disk_encryption_key }} -f {{ data_file_path }}
   when:
     - disk_encryption_key is defined
@@ -74,32 +73,7 @@
     - is_mounted.rc != 0
 
   # Create data directories
-- name: Check mongo data directory
-  stat:
-    path: /data/mongo
-  register: mongo_data
-
-- name: 'Create mongo data directory'
-  file:
-    path: /data/mongo
-    state: directory
-  when: not mongo_data.stat.exists
-
-- name: Check mongo data backup directory
-  stat:
-    path: /data/backups/mongo
-  register: mongo_data_backup
-
-- name: 'Create mongo backup directory'
-  file:
-    path: /data/backups/mongo
-    state: directory
-    group: 1000
-    owner: 1000
-    mode: g+rwx
-  when: not mongo_data_backup.stat.exists
-
-- name: 'Create traefik data directory'
+- name: "Create traefik data directory"
   file:
     path: /data/traefik
     state: directory
@@ -110,7 +84,7 @@
     path: /data/elasticsearch
   register: elasticsearch_data
 
-- name: 'Create elasticsearch data directory'
+- name: "Create elasticsearch data directory"
   file:
     path: /data/elasticsearch
     state: directory
@@ -124,7 +98,7 @@
     path: /data/backups/elasticsearch
   register: elasticsearch_data_backup
 
-- name: 'Create elasticsearch backup directory'
+- name: "Create elasticsearch backup directory"
   file:
     path: /data/backups/elasticsearch
     state: directory
@@ -133,34 +107,22 @@
     mode: ugo+rwx
   when: not elasticsearch_data_backup.stat.exists
 
-- name: Check metabase data directory
-  stat:
-    path: /data/metabase
-  register: metabase_data
-
-- name: 'Delete metabase data directory if exists'
+- name: "Delete metabase data directory if exists"
   file:
     path: /data/metabase
     state: absent
-  when: metabase_data.stat.exists
 
-- name: Check metabase data backup directory
-  stat:
-    path: /data/backups/metabase
-  register: metabase_data_backup
-
-- name: 'Delete metabase backup directory if exists'
+- name: "Delete metabase backup directory if exists"
   file:
     path: /data/backups/metabase
     state: absent
-  when: metabase_data_backup.stat.exists
 
 - name: Check minio data directory
   stat:
     path: /data/minio
   register: minio_data
 
-- name: 'Create minio data directory'
+- name: "Create minio data directory"
   file:
     path: /data/minio
     state: directory
@@ -174,7 +136,7 @@
     path: /data/backups/minio
   register: minio_data_backup
 
-- name: 'Create minio backup directory'
+- name: "Create minio backup directory"
   file:
     path: /data/backups/minio
     state: directory
@@ -188,7 +150,7 @@
     path: /data/vsexport
   register: vsexport_data
 
-- name: 'Create vsexport data directory'
+- name: "Create vsexport data directory"
   file:
     path: /data/vsexport
     state: directory
@@ -202,7 +164,7 @@
     path: /data/backups/vsexport
   register: vsexport_data_backup
 
-- name: 'Create vsexport backup directory'
+- name: "Create vsexport backup directory"
   file:
     path: /data/backups/vsexport
     state: directory
@@ -211,20 +173,20 @@
     mode: ugo+rwx
   when: not vsexport_data_backup.stat.exists
 
-- name: 'Create acme file for traefik'
+- name: "Create acme file for traefik"
   file:
     path: /data/traefik/acme.json
     state: touch
     owner: 65532
     group: 65532
     # Owner has rw, others no permissions
-    mode: '0600'
+    mode: "0600"
 
-- name: 'Create certs directory for traefik'
+- name: "Create certs directory for traefik"
   file:
     path: /data/traefik/certs
     state: directory
     owner: 65532
     group: 65532
     # Owner has rwx, group r, others no permissions
-    mode: '0740'
+    mode: "0740"

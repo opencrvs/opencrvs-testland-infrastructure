@@ -120,7 +120,6 @@ jobs:
             "elasticsearch-admin-user"
             "redis-opencrvs-users"
             "minio-opencrvs-users"
-            "mongodb-admin-user"
             "postgres-admin-user"
           )
           for secret in "${secrets[@]}"; do

@@ -17,8 +17,6 @@ elasticsearch:
   use_default_credentials: false
   node_selector:
     role: data1
-mongodb:
-  use_default_credentials: false
 
 postgres:
   use_default_credentials: false

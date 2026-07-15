@@ -10,8 +10,5 @@ minio:
 elasticsearch:
   use_default_credentials: false
 
-mongodb:
-  use_default_credentials: false
-
 node_selector:
- role: data1
+  role: data1
