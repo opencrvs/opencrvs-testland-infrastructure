@@ -113,7 +113,6 @@ jobs:
           - data-cleanup
           - postgres-on-deploy
           - data-migration
-          - data-migration-legacy
           - data-migration-analytics
     steps:
         - name: Download helm release values file into /tmp/opencrvs-${{ inputs.environment }}.json
