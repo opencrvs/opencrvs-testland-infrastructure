@@ -27,6 +27,10 @@ gateway:
   env:
     DISABLE_RATE_LIMIT: true
 
+events:
+  env:
+    DEFAULT_USER_PASSWORD: "test"
+
 postgres_on_deploy:
   secrets:
     reference-data-db-secret:
