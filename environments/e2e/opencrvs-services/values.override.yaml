@@ -7,6 +7,7 @@ hostname: e2e.opencrvs.dev
 
 env:
   APN_SERVICE_URL: apm-server.opencrvs-deps-qa.svc.cluster.local
+  APN_ENVIRONMENT: e2e
 countryconfig:
   image:
     name: opencrvs-testland
