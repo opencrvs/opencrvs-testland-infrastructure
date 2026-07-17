@@ -57,5 +57,6 @@ jobs:
           directory: ./infrastructure/server-setup
           # Add --verbose to get more output
           options: |-
-            --inventory inventory/${{ inputs.environment }}.yml
+            --inventory ../../environments/${{ inputs.environment }}/inventory.yml
+            ${{ hashFiles(format('environments/{0}/inventory-vars.yml', inputs.environment)) != '' && format('--extra-vars @../../environments/{0}/inventory-vars.yml', inputs.environment) || '' }}
             --extra-vars user=${{ inputs.user }}

@@ -99,7 +99,7 @@ You will need to provide the following values and answers to the following quest
 - Configure Email/SMS notifications for alerting
 
 > [!NOTE]
-> OpenCRVS environment is provisioned with and deployed as Helm charts. Configuration files are created at first run of `yarn environment:init`, all further changes should be manually at `environments/<environment name>/` and `infrastructure/server-setup/inventory/`
+> OpenCRVS environment is provisioned with and deployed as Helm charts. Configuration files are created at first run of `yarn environment:init`, all further changes should be made manually at `environments/<environment name>/`
 
 ---
 
@@ -137,7 +137,7 @@ You will need to provide the following values and answers to the following quest
   ```
 - Save generated snippet for later usage
 - Go to GitHub and verify the newly created environment
-- Commit configuration files generated at `infrastructure/server-setup/inventory/` and `environments/` into git
+- Commit configuration files generated at `environments/<environment name>/` into git
 
 ## 2. Bootstrap GitHub Self-Hosted Runner
 
