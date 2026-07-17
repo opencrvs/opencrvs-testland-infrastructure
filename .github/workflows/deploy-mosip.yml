@@ -36,7 +36,8 @@ jobs:
       GITHUB_ACTOR: ${{ github.actor }}
       CORE_IMAGE_TAG: ${{ inputs.core-image-tag }}
       COUNTRYCONFIG_IMAGE_TAG: ${{ inputs.countryconfig-image-tag }}
-      COUNTRYCONFIG_IMAGE_NAME: ${{ secrets.DOCKERHUB_ACCOUNT || 'opencrvs' }}/${{ secrets.DOCKERHUB_REPO || 'ocrvs-farajaland'}}
+      # testland ships in core; bare name inherits platform.repository (ghcr.io/opencrvs)
+      COUNTRYCONFIG_IMAGE_NAME: ocrvs-testland
       SENDER_EMAIL_ADDRESS: ${{ secrets.SENDER_EMAIL_ADDRESS }}
       ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
     runs-on:
