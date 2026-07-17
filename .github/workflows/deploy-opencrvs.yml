@@ -24,7 +24,7 @@ on:
       data-seed-enabled:
         description: "Data seeding during deployment"
         required: false
-        default: "false"
+        default: false
         type: boolean
       environment:
         description: "Target environment"
@@ -88,7 +88,12 @@ jobs:
       GITHUB_ACTOR: ${{ github.actor }}
       CORE_IMAGE_TAG: ${{ inputs.core-image-tag }}
       COUNTRYCONFIG_IMAGE_TAG: ${{ inputs.countryconfig-image-tag }}
-      COUNTRYCONFIG_IMAGE_NAME: ${{ secrets.DOCKERHUB_ACCOUNT || 'opencrvs' }}/${{ secrets.DOCKERHUB_REPO || 'ocrvs-farajaland'}}
+      # testland (packages/testland in opencrvs-core), published to ghcr by
+      # core's image matrix. No "/" in the name => inherits platform.repository
+      # (ghcr.io/opencrvs), resolving to ghcr.io/opencrvs/ocrvs-testland
+      # (public, no pull secret needed). The companion assets image resolves to
+      # ocrvs-testland:<tag>-assets.
+      COUNTRYCONFIG_IMAGE_NAME: ocrvs-testland
       SENDER_EMAIL_ADDRESS: ${{ secrets.SENDER_EMAIL_ADDRESS }}
       ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
     runs-on:
