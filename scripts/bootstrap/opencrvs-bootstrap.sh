@@ -77,6 +77,9 @@ curl_check_url() {
         --silent \
         --location \
         --head \
+        --retry 3 \
+        --retry-delay 2 \
+        --retry-all-errors \
         --max-time 10 \
         --output /dev/null \
         --write-out "%{http_code}" \

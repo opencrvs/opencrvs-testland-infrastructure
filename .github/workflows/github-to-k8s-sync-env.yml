@@ -145,7 +145,7 @@ jobs:
       - k8s
       - ${{ inputs.environment }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       # Create a temporary file for environment variables
       # to store GitHub Secrets and Variables (base64 encoded)
       # Making those values base64 encoded allows us to avoid further complex escaping issues

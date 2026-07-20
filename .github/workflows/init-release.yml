@@ -63,7 +63,7 @@ jobs:
 
       # Full history is required so yarn can traverse the commit graph.
       - name: Checkout ${{ steps.get_base_branch.outputs.base_branch }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ steps.get_base_branch.outputs.base_branch }}
           fetch-depth: 0

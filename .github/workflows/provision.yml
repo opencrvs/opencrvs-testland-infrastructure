@@ -80,7 +80,7 @@ jobs:
           kube_runner_token: ${{ secrets.GH_TOKEN }}
           kube_self_hosted_runner_additional_labels: ${{ vars.KUBE_SELF_HOSTED_RUNNER_ADDITIONAL_LABELS }}
       - name: checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Run Ansible Playbook
         uses: dawidd6/action-ansible-playbook@v9
         env:

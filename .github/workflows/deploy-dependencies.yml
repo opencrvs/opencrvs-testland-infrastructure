@@ -57,7 +57,7 @@ jobs:
       ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install Traefik
         run: |
           touch environments/${ENV}/traefik/values.override.yaml
