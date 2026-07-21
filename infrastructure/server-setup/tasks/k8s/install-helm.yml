@@ -1,7 +1,14 @@
+- name: Check installed Helm version
+  ansible.builtin.command: /usr/local/bin/helm version --template '{{ "{{ .Version }}" }}'
+  register: installed_helm_version
+  changed_when: false
+  failed_when: false
+
 - name: Install Helm
   # Default helm installation script was replaced with manual curl due to random issue:
   # curl: (35) OpenSSL SSL_connect: SSL_ERROR_SYSCALL in connection to get.helm.sh:443
   # FIXME: replace amd64 with architecture varible taken from ansible facts
+  when: installed_helm_version.stdout != helm_version
   ansible.builtin.shell: |
     TMPDIR=$(mktemp -d)
     curl -sSL --retry-all-errors --retry 5 \
@@ -10,5 +17,21 @@
     tar -zxf "$TMPDIR/helm.tar.gz" -C "$TMPDIR"
     sudo install -m 0755 "$TMPDIR/linux-amd64/helm" /usr/local/bin/helm
     rm -rf "$TMPDIR"
-  args:
-    creates: /usr/local/bin/helm
+
+- name: Check installed Helm diff plugin version
+  ansible.builtin.command: /usr/local/bin/helm diff version
+  register: installed_helm_diff_plugin_version
+  changed_when: false
+  failed_when: false
+
+- name: Remove mismatched Helm diff plugin
+  ansible.builtin.command: /usr/local/bin/helm plugin remove diff
+  when:
+    - installed_helm_diff_plugin_version.rc == 0
+    - helm_diff_plugin_version not in installed_helm_diff_plugin_version.stdout
+
+- name: Install Helm diff plugin
+  ansible.builtin.command: /usr/local/bin/helm plugin install https://github.com/databus23/helm-diff --version {{ helm_diff_plugin_version }}
+  when: >
+    installed_helm_diff_plugin_version.rc != 0 or
+    helm_diff_plugin_version not in installed_helm_diff_plugin_version.stdout

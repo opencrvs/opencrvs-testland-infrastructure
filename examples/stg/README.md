@@ -91,8 +91,8 @@ In your github repository you should see a self-hosted runner under settings/act
 
 ## Prepare inventory file
 
-1. Go to `infrastructure/server-setup/inventory` folder
-2. Create configuration file for your dev VM, name should match with GitHub environment name, e/g if your environment name is `demo` then file name should be `demo.yml`. See example.
+1. Go to `environments/<environment name>` folder
+2. Create `inventory.yml` for your dev VM. See example.
 3. Commit your changes
 4. Make sure update-envs workflow completed before moving to the next section.
 

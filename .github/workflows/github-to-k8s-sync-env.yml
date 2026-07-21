@@ -35,7 +35,7 @@ jobs:
     name: Get restore environment name
     outputs:
       restore_env_name: ${{ vars.RESTORE_ENVIRONMENT_NAME }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: ${{ inputs.environment }}
     steps:
       - name: "Env name: ${{ vars.RESTORE_ENVIRONMENT_NAME }}"
@@ -47,7 +47,7 @@ jobs:
     name: Get restore environment mode
     outputs:
       restore_mode: ${{ vars.BACKUP_ENVIRONMENT_MODE }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: ${{ needs.get-restore-env-name.outputs.restore_env_name }}
     steps:
       - name: "Env name: ${{ needs.get-restore-env-name.outputs.restore_env_name }} and mode ${{ vars.BACKUP_ENVIRONMENT_MODE }}"
@@ -111,7 +111,7 @@ jobs:
     if: needs.get-restore-env-name.outputs.restore_env_name
     name: Get backup host
     environment: ${{ needs.get-restore-env-name.outputs.restore_env_name }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       host: ${{ vars.BACKUP_HOST }}
     steps:

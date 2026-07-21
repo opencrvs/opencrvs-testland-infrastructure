@@ -11,7 +11,7 @@ It detects new or removed inventory files and updates the relevant workflow `.ym
 
 - **Manual trigger:** from the GitHub Actions UI ("Run workflow")  
 - **Automatic trigger:** on any branch push that modifies either  
-  - Any inventory file under `infrastructure/server-setup/inventory/*`  
+  - Any inventory file at `environments/*/inventory.yml`
   - `.github/workflows/update-envs.yml` (the workflow itself)
 
 ---
@@ -27,8 +27,8 @@ It detects new or removed inventory files and updates the relevant workflow `.ym
    - Uses a token supplied via secret for proper repo access.
 
 2. **Extract inventory names**
-   - Dynamically lists all environment inventory YAML files (e.g., `dev.yml`, `qa.yml`) found in `infrastructure/server-setup/inventory/`.
-   - Produces a list of environment names (the filenames without `.yml`).
+   - Dynamically lists all environment inventory YAML files (e.g., `environments/dev/inventory.yml`, `environments/qa/inventory.yml`).
+   - Produces a list of environment names from the parent folder names.
 
 3. **Update workflow files**
    - For each workflow (`provision.yml`, `deploy-dependencies.yml`, `deploy-opencrvs.yml`), uses [`yq`](https://github.com/mikefarah/yq) to update the `environment` options for workflow dispatch.
@@ -49,7 +49,7 @@ It detects new or removed inventory files and updates the relevant workflow `.ym
 
 ### Example
 
-If you add `staging.yml` to `infrastructure/server-setup/inventory/`, this workflow will update the dispatch menus for all related workflows to include `staging` as an option.
+If you add `environments/staging/inventory.yml`, this workflow will update the dispatch menus for all related workflows to include `staging` as an option.
 
 
 ## Build and Push Runner Image Workflow

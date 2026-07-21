@@ -8,9 +8,9 @@
   when: not kube_init_check.stat.exists
   shell: |
     sudo kubeadm init \
-      --apiserver-advertise-address={{ kube_api_host | default(ansible_default_ipv4.address, true) }} \
+      --apiserver-advertise-address={{ kube_api_host | default(ansible_facts['default_ipv4']['address'], true) }} \
       --pod-network-cidr={{ pod_network_cidr }} \
-      --control-plane-endpoint={{ kube_api_host | default(ansible_default_ipv4.address, true) }}
+      --control-plane-endpoint={{ kube_api_host | default(ansible_facts['default_ipv4']['address'], true) }}
   register: kubeadm_init_result
 
 - name: Create .kube directory for provision user
@@ -30,6 +30,17 @@
     mode: '0600'
     remote_src: yes
     force: yes
+
+- name: Wait for Kubernetes API server
+  shell: kubectl get nodes
+  environment:
+    KUBECONFIG: /home/provision/.kube/config
+  register: kube_api_ready
+  until: kube_api_ready.rc == 0
+  retries: 30
+  delay: 10
+  changed_when: false
+
 # FIXME: As Ops I would like to have dedicated master node, all workloads should go to workers
 #        Current setup will spread load across all nodes, including master
 - name: Single node setup
@@ -47,14 +58,14 @@
   register: join_command
 
 - name: Remove existing join command file if it exists
-  local_action:
-    module: file
+  delegate_to: localhost
+  file:
     path: ./join-command.sh
     state: absent
 
 - name: Save join command to local file
-  local_action:
-    module: copy
+  delegate_to: localhost
+  copy:
     content: "{{ join_command.stdout }}"
     dest: ./join-command.sh
     force: yes

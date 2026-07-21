@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.0 Release
+
+### Improvements
+
+- Added Ubuntu 26.04 support to OpenCRVS infrastructure [#13111](https://github.com/opencrvs/opencrvs-core/issues/13111)
+- Upgraded Kubernetes to v1.36 [#13177](https://github.com/opencrvs/opencrvs-core/issues/13177)
+
 ## 2.0.1 Release
 
 ### New features

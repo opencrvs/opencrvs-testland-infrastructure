@@ -31,7 +31,7 @@ on:
 jobs:
   approve:
     environment: ${{ inputs.environment }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     steps:
       - name: Waiting for manual approval
@@ -93,6 +93,7 @@ jobs:
           directory: ./infrastructure/server-setup
           # Add --verbose to get more output
           options: |-
-            --inventory inventory/${{ inputs.environment }}.yml
+            --inventory ../../environments/${{ inputs.environment }}/inventory.yml
             ${{ inputs.tags != 'all' && format('--tags={0}', inputs.tags) || '' }}
+            ${{ hashFiles(format('environments/{0}/inventory-vars.yml', inputs.environment)) != '' && format('--extra-vars @../../environments/{0}/inventory-vars.yml', inputs.environment) || '' }}
             --extra-vars ""${{ steps.ansible-variables.outputs.EXTRA_VARS }}""

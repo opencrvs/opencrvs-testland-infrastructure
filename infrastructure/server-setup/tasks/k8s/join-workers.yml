@@ -5,8 +5,8 @@
 
 - name: Read join command from local file
   when: not kubelet_conf_check.stat.exists
-  local_action:
-    module: slurp
+  delegate_to: localhost
+  slurp:
     src: ./join-command.sh
   register: join_command_content
 

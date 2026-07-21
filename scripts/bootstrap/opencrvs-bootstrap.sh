@@ -62,10 +62,13 @@ done
 
 check_ubuntu_version() {
     echo "Checking Ubuntu version..."
+
     UBUNTU_VERSION=$(lsb_release -rs)
-    if [ "$UBUNTU_VERSION" != "$MIN_UBUNTU_VERSION" ]; then
-      abort "Ubuntu $MIN_UBUNTU_VERSION is required, found $UBUNTU_VERSION"
+
+    if ! dpkg --compare-versions "$UBUNTU_VERSION" ge "$MIN_UBUNTU_VERSION"; then
+        abort "Ubuntu $MIN_UBUNTU_VERSION or newer is required, found $UBUNTU_VERSION"
     fi
+
     echo "Ubuntu version OK."
 }
 
@@ -77,9 +80,6 @@ curl_check_url() {
         --silent \
         --location \
         --head \
-        --retry 3 \
-        --retry-delay 2 \
-        --retry-all-errors \
         --max-time 10 \
         --output /dev/null \
         --write-out "%{http_code}" \

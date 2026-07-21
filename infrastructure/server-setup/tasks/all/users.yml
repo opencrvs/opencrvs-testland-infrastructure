@@ -4,7 +4,7 @@
     state: '{{ item.state }}'
   with_items: '{{ users }}'
 
-- name: Grant passwordless sudo to {{ item.name }} with admin role, but prevent usage of 'su'
+- name: Grant passwordless sudo to admin users, but prevent usage of 'su'
   ansible.builtin.lineinfile:
     path: /etc/sudoers.d/{{ item.name }}
     line: '{{ item.name }} ALL=(ALL) NOPASSWD:ALL, !/usr/bin/su'
@@ -15,8 +15,10 @@
     - item.state == 'present'
     - item.role == 'admin'
   with_items: '{{ users }}'
+  loop_control:
+    label: "{{ item.name }}"
 
-- name: Grant restricted passwordless sudo to {{ item.name }} with operator role (dynamic matrix)
+- name: Grant restricted passwordless sudo to operator users
   ansible.builtin.copy:
     dest: /etc/sudoers.d/{{ item.name }}
     content: "{{ item.name }} ALL=(ALL) NOPASSWD: {{ allowed_cmds | join(', ') }}, !/usr/bin/su"
@@ -44,8 +46,10 @@
     - item.state == 'present'
     - item.role == 'operator'
   with_items: '{{ users }}'
+  loop_control:
+    label: "{{ item.name }}"
 
-- name: Grant passwordless sudo to {{ item.name }} with admin role on backup host
+- name: Grant passwordless sudo to admin users on backup host
   ansible.builtin.lineinfile:
     path: /etc/sudoers.d/{{ item.name }}
     line: '{{ item.name }} ALL=(ALL) NOPASSWD:ALL, !/usr/bin/su'
@@ -57,6 +61,8 @@
     - item.role == 'admin'
     - "'backup' in group_names"
   with_items: "{{ users }}"
+  loop_control:
+    label: "{{ item.name }}"
 
 - name: Set authorized keys for users
   authorized_key:

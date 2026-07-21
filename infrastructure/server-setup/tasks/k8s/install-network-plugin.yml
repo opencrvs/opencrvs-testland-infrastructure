@@ -3,15 +3,19 @@
 # Ref: https://docs.tigera.io/calico/latest/getting-started/kubernetes/quickstart
 - name: Create Calico custom resource definitions
   shell: |
-    curl  --retry-all-errors --retry 5 -O https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/v1_crd_projectcalico_org.yaml
-    kubectl apply --server-side=true --force-conflicts -f v1_crd_projectcalico_org.yaml
+    curl -fL --retry-all-errors --retry 5 \
+      -o /tmp/v1_crd_projectcalico_org.yaml \
+      https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/v1_crd_projectcalico_org.yaml
+    kubectl apply --server-side=true --force-conflicts -f /tmp/v1_crd_projectcalico_org.yaml
   environment:
     KUBECONFIG: /home/provision/.kube/config
 
 - name: Install Tigera Operator
   shell: |
-    curl  --retry-all-errors --retry 5 -O https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/tigera-operator.yaml
-    kubectl apply --server-side=true --force-conflicts -f tigera-operator.yaml
+    curl -fL --retry-all-errors --retry 5 \
+      -o /tmp/tigera-operator.yaml \
+      https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/tigera-operator.yaml
+    kubectl apply --server-side=true --force-conflicts -f /tmp/tigera-operator.yaml
   environment:
     KUBECONFIG: /home/provision/.kube/config
 

@@ -13,7 +13,7 @@
   "husky": {},
   "scripts": {
     "environment:init": "opencrvs environment init",
-    "environment:upgrade": "yarn environment:init",
+    "environment:upgrade": "opencrvs environment upgrade",
     "environment:swarm-to-k8s": "opencrvs environment swarm-to-k8s",
     "environment:users": "opencrvs environment users",
     "environment:update-workflows": "opencrvs environment update-workflows",

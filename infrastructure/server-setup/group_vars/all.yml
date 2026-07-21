@@ -30,7 +30,7 @@ min_free_disk_size: "30g"
 # - kubeadm
 # - kubelet
 # - kubectl
-kubernetes_version: "v1.35"
+kubernetes_version: "v1.36"
 
 # Kubernetes Eviction Policy Configuration
 #
@@ -74,15 +74,21 @@ cluster_communication_ports:
 kube_api_allowed_cidrs: ""
 
 # Container Network Interface plugin: Calico version
-calico_version: "v3.32.0"
+calico_version: "v3.32.1"
 # CNI configuration (read-only after installation)
 pod_network_cidr: "192.168.0.0/16"
 
 # Helm version
-helm_version: "v4.1.1"
+# Helm 4 is not yet compatible with kubernetes.core.helm module commands.
+# see: 
+# - https://docs.ansible.com/projects/ansible/latest/collections/kubernetes/core/helm_module.html
+# - https://github.com/helm/helm/pull/31828
+helm_version: "v3.21.1"
+# Helm diff improves kubernetes.core.helm idempotency checks.
+helm_diff_plugin_version: "v3.15.10"
 
 # Certificate manager chart version
-cert_manager_version: "v1.20.2"
+cert_manager_version: "v1.21.0"
 
 # Action runner controller chart version
 arc_chart_version: "0.23.7"

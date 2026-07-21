@@ -1,3 +1,5 @@
-This folder is used to store helm chart values.
+This folder is used to store environment-specific OpenCRVS configuration,
+including Helm chart values and Ansible inventory files.
 
-Files in this folder are created by `yarn environment:init`, but all further updates should be done manually.
+Files in this folder are created and managed by `yarn environment:init`.
+Use `*.override.yaml` to manage custom values for OpenCRVS helm charts.

@@ -1,18 +1,16 @@
 - name: Build list of labelable nodes
   ansible.builtin.set_fact:
-    kube_nodes_to_label: >-
-      {{
-        (
-          groups['master'] + (groups['workers'] | default([]))
-        ) | map('extract', hostvars) |
-        selectattr('labels', 'defined')
-      }}
+    kube_nodes_to_label: "{{ kube_nodes_to_label | default([]) + [{'node_name': hostvars[item]['ansible_facts']['nodename'], 'labels': hostvars[item]['labels']}] }}"
+  loop: "{{ groups['master'] + (groups['workers'] | default([])) }}"
+  when: hostvars[item]['labels'] is defined
+  loop_control:
+    label: "{{ item }}"
 
 - name: Label each Kubernetes node with its inventory labels
   kubernetes.core.k8s:
     api_version: v1
     kind: Node
-    name: "{{ item.ansible_facts.nodename }}"
+    name: "{{ item.node_name }}"
     definition:
       metadata:
         labels: "{{ item.labels }}"
@@ -22,3 +20,5 @@
       - merge
   loop: "{{ kube_nodes_to_label }}"
   when: item.labels is defined
+  loop_control:
+    label: "{{ item.node_name }}"

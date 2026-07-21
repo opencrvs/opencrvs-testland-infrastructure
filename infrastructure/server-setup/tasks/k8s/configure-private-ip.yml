@@ -7,7 +7,7 @@
           kube_api_host
           if inventory_hostname in groups['master']
           else ansible_host
-        ) | default(ansible_default_ipv4.address, true)
+        ) | default(ansible_facts['default_ipv4']['address'], true)
       }}
 
 - name: Show Kubelet node IP
