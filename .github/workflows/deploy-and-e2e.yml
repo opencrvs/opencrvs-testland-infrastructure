@@ -1,5 +1,5 @@
 name: Deploy & run E2E
-run-name: 'E2E by ${{ github.event.client_payload.actor || github.actor }} (core: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }})'
+run-name: "E2E by ${{ github.event.client_payload.actor || github.actor }} (core: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }})"
 on:
   repository_dispatch:
     types: [run_e2e]
@@ -8,14 +8,14 @@ on:
       core-image-tag:
         description: Core image tag (also tags the testland image — testland ships in core)
         required: true
-        default: 'develop'
+        default: "develop"
       core-branch:
         description: Core branch to run the e2e suite from
         required: false
-        default: 'develop'
+        default: "develop"
 
 concurrency:
-  group: 'e2e'
+  group: "e2e"
   cancel-in-progress: true
 
 env:
@@ -32,27 +32,34 @@ jobs:
   reset-data:
     uses: ./.github/workflows/clear-all-data.yml
     with:
-      environment: 'e2e'
+      environment: "e2e"
     secrets: inherit
 
   cache-node-js:
     name: Cache Node.js dependencies
     runs-on: ubuntu-24.04
     steps:
-      # testland resolves @opencrvs/toolkit as a yarn workspace, so toolkit and
-      # its build inputs (commons, events) must be checked out and built from
-      # the same core ref — otherwise yarn would fall back to the npm-published
-      # toolkit and tests would not see the ref's toolkit changes.
+      # testland resolves @opencrvs/toolkit as a workspace package, so toolkit
+      # and its build inputs (commons, events) must be checked out and built
+      # from the same core ref — otherwise the install would fall back to the
+      # npm-published toolkit and tests would not see the ref's toolkit changes.
+      # patches/ carries the workspace's pnpm patchedDependencies files, which
+      # pnpm requires to exist on every install.
       - uses: actions/checkout@v6
         with:
-          repository: 'opencrvs/opencrvs-core'
+          repository: "opencrvs/opencrvs-core"
           ref: ${{ github.event.client_payload.core-branch || inputs.core-branch }}
           sparse-checkout: |
             development-environment
+            patches
             packages/testland
             packages/toolkit
             packages/commons
             packages/events
+
+      # pnpm version is pinned by the packageManager field in core's package.json.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
       # Cone-mode sparse checkout always includes root files, so the monorepo
       # root .nvmrc is available even though packages/testland has none.
@@ -61,10 +68,11 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      # Root yarn workspace install hoists dependencies to the repo-root
-      # node_modules, so that (plus each package's local node_modules) is what
-      # has to be cached — not just packages/testland. Build outputs are not
-      # cached; the toolkit chain rebuilds in every job (fast).
+      # The root workspace install materializes dependencies under the
+      # repo-root node_modules, so that (plus each package's local
+      # node_modules) is what has to be cached — not just packages/testland.
+      # Build outputs are not cached; the toolkit chain rebuilds in every
+      # job (fast).
       - name: Cache Node.js dependencies
         uses: actions/cache@v6
         id: cache
@@ -75,9 +83,8 @@ jobs:
             packages/toolkit/node_modules
             packages/commons/node_modules
             packages/events/node_modules
-            ~/.cache/yarn/v6
             ~/.cache/ms-playwright
-          key: ${{ runner.os }}-node-${{ hashFiles('yarn.lock') }}
+          key: ${{ runner.os }}-node-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-node-
 
@@ -87,7 +94,7 @@ jobs:
         with:
           timeout_minutes: 10
           max_attempts: 3
-          command: yarn
+          command: pnpm install --frozen-lockfile
 
       - uses: nick-fields/retry@v4
         name: Install Playwright Browsers
@@ -99,14 +106,14 @@ jobs:
 
   data-seed:
     uses: ./.github/workflows/seed-data.yml
-    if: '!cancelled()'
+    if: "!cancelled()"
     needs: reset-data
     with:
-      environment: 'e2e'
+      environment: "e2e"
     secrets: inherit
   deploy:
     uses: ./.github/workflows/deploy-opencrvs.yml
-    if: '!cancelled()'
+    if: "!cancelled()"
     needs:
       - reset-data
       - data-seed
@@ -114,7 +121,7 @@ jobs:
       core-image-tag: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }}
       # testland ships in core, so the countryconfig image carries the core tag
       countryconfig-image-tag: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }}
-      environment: 'e2e'
+      environment: "e2e"
       data-seed-enabled: true
     secrets: inherit
 
@@ -122,7 +129,7 @@ jobs:
     needs: [debug, deploy, cache-node-js]
     if: "!cancelled() && needs.deploy.result == 'success'"
     runs-on: ubuntu-24.04
-    environment: 'e2e'
+    environment: "e2e"
     strategy:
       max-parallel: 15
       fail-fast: false
@@ -149,20 +156,25 @@ jobs:
             6,
             10,
             11,
-            13
+            13,
           ]
     name: shard-${{ matrix.shard }}
     steps:
       - uses: actions/checkout@v6
         with:
-          repository: 'opencrvs/opencrvs-core'
+          repository: "opencrvs/opencrvs-core"
           ref: ${{ github.event.client_payload.core-branch || inputs.core-branch }}
           sparse-checkout: |
             development-environment
+            patches
             packages/testland
             packages/toolkit
             packages/commons
             packages/events
+
+      # pnpm version is pinned by the packageManager field in core's package.json.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
       - name: Set up Node.js from core .nvmrc
         uses: actions/setup-node@v6
@@ -179,17 +191,16 @@ jobs:
             packages/toolkit/node_modules
             packages/commons/node_modules
             packages/events/node_modules
-            ~/.cache/yarn/v6
             ~/.cache/ms-playwright
-          key: ${{ runner.os }}-node-${{ hashFiles('yarn.lock') }}
+          key: ${{ runner.os }}-node-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-node-
 
       - name: Install Dependencies
         if: steps.cache.outputs.cache-hit != 'true'
-        run: yarn
+        run: pnpm install --frozen-lockfile
       - name: Build toolkit (with commons and events)
-        run: yarn --cwd packages/toolkit build:all
+        run: pnpm --dir packages/toolkit build:all
       - uses: nick-fields/retry@v4
         if: steps.cache.outputs.cache-hit != 'true'
         with:
@@ -203,7 +214,7 @@ jobs:
           curl -s -o $NODE_EXTRA_CA_CERTS https://letsencrypt.org/certs/staging/letsencrypt-stg-root-x1.pem
           npx playwright test --shard=${{ matrix.shard }}/20
       - id: ctrf_check
-        if: '!cancelled()'
+        if: "!cancelled()"
         working-directory: packages/testland
         run: |
           [ -d ctrf ] && \
@@ -212,14 +223,14 @@ jobs:
       - name: Publish Test Report
         uses: ctrf-io/github-test-reporter@v1
         with:
-          report-path: './packages/testland/ctrf/*.json'
+          report-path: "./packages/testland/ctrf/*.json"
           github-report: true
           summary-report: true
           test-report: true
         if: "!cancelled() && steps.ctrf_check.outputs.ctrf == 'true'"
       - name: Upload report artifact
         uses: actions/upload-artifact@v7
-        if: '!cancelled()'
+        if: "!cancelled()"
         with:
           name: playwright-report-e2e-shard-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: packages/testland/playwright-report/
@@ -236,7 +247,7 @@ jobs:
       - name: Send Slack notification
         uses: slackapi/slack-github-action@v1.26.0
         with:
-          channel-id: 'C08FCLKER8X'
+          channel-id: "C08FCLKER8X"
           slack-message: "❌ E2E pipeline triggered by ${{ github.event.client_payload.actor || github.actor }} failed. Check the logs at https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}."
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -250,7 +261,7 @@ jobs:
       - name: Send Slack notification
         uses: slackapi/slack-github-action@v1.26.0
         with:
-          channel-id: 'C08FCLKER8X'
-          slack-message: '✅ E2E pipeline finished successfully, triggered by ${{ github.event.client_payload.actor || github.actor }}. Check the logs at https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}.'
+          channel-id: "C08FCLKER8X"
+          slack-message: "✅ E2E pipeline finished successfully, triggered by ${{ github.event.client_payload.actor || github.actor }}. Check the logs at https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}."
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
