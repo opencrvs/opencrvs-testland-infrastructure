@@ -34,10 +34,6 @@ jobs:
       ENV: ${{ inputs.environment }}
       BRANCH: ${{ github.ref_name }}
       GITHUB_ACTOR: ${{ github.actor }}
-      CORE_IMAGE_TAG: ${{ inputs.core-image-tag }}
-      COUNTRYCONFIG_IMAGE_TAG: ${{ inputs.countryconfig-image-tag }}
-      # testland ships in core; bare name inherits platform.repository (ghcr.io/opencrvs)
-      COUNTRYCONFIG_IMAGE_NAME: ocrvs-testland
       SENDER_EMAIL_ADDRESS: ${{ secrets.SENDER_EMAIL_ADDRESS }}
       ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
     runs-on:
