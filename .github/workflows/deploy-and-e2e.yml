@@ -119,8 +119,6 @@ jobs:
       - data-seed
     with:
       core-image-tag: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }}
-      # testland ships in core, so the countryconfig image carries the core tag
-      countryconfig-image-tag: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }}
       environment: "e2e"
       data-seed-enabled: true
     secrets: inherit
