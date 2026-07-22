@@ -4,6 +4,10 @@ ingress:
 
 mosip_api:
   enabled: true
+  secrets:
+    mosip-integration-secret:
+      - OPENCRVS_MOSIP_CLIENT_ID:OPENCRVS_CLIENT_ID
+      - OPENCRVS_MOSIP_CLIENT_SECRET:OPENCRVS_CLIENT_SECRET
 
 mosip_mock:
   enabled: true
