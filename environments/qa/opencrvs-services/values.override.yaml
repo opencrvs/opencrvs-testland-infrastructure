@@ -17,9 +17,6 @@ countryconfig:
   secrets:
     reference-data-db-secret:
       - REFERENCE_DATA_DATABASE_URL
-    mosip-integration-secret:
-      - OPENCRVS_MOSIP_CLIENT_ID:MOSIP_INTEGRATION_CLIENT_ID
-      - OPENCRVS_MOSIP_CLIENT_SECRET:MOSIP_INTEGRATION_CLIENT_SECRET
 postgres_on_deploy:
   secrets:
     reference-data-db-secret:
