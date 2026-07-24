@@ -1,37 +1,50 @@
-- name: Check installed Helm version
-  ansible.builtin.command: /usr/local/bin/helm version --template '{{ "{{ .Version }}" }}'
-  register: installed_helm_version
+- name: Download Helm apt repository signing key
+  ansible.builtin.get_url:
+    url: https://packages.buildkite.com/helm-linux/helm-debian/gpgkey
+    dest: /tmp/helm.gpg
+    mode: "0644"
+
+- name: Dearmor Helm apt repository signing key
+  ansible.builtin.command:
+    cmd: gpg --dearmor --yes --output /etc/apt/keyrings/helm.gpg /tmp/helm.gpg
+  become: yes
   changed_when: false
-  failed_when: false
+
+- name: Add Helm apt repository
+  ansible.builtin.apt_repository:
+    repo: deb [signed-by=/etc/apt/keyrings/helm.gpg] https://packages.buildkite.com/helm-linux/helm-debian/any/ any main
+    filename: helm-stable-debian
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Remove legacy Helm binary installed from tarball
+  ansible.builtin.file:
+    path: /usr/local/bin/helm
+    state: absent
+  become: yes
 
 - name: Install Helm
-  # Default helm installation script was replaced with manual curl due to random issue:
-  # curl: (35) OpenSSL SSL_connect: SSL_ERROR_SYSCALL in connection to get.helm.sh:443
-  # FIXME: replace amd64 with architecture varible taken from ansible facts
-  when: installed_helm_version.stdout != helm_version
-  ansible.builtin.shell: |
-    TMPDIR=$(mktemp -d)
-    curl -sSL --retry-all-errors --retry 5 \
-      -o "$TMPDIR/helm.tar.gz" \
-      "https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz"
-    tar -zxf "$TMPDIR/helm.tar.gz" -C "$TMPDIR"
-    sudo install -m 0755 "$TMPDIR/linux-amd64/helm" /usr/local/bin/helm
-    rm -rf "$TMPDIR"
+  ansible.builtin.apt:
+    name: "helm={{ helm_version }}"
+    state: present
+    allow_downgrade: yes
+  become: yes
 
 - name: Check installed Helm diff plugin version
-  ansible.builtin.command: /usr/local/bin/helm diff version
+  ansible.builtin.command: helm diff version
   register: installed_helm_diff_plugin_version
   changed_when: false
   failed_when: false
 
 - name: Remove mismatched Helm diff plugin
-  ansible.builtin.command: /usr/local/bin/helm plugin remove diff
+  ansible.builtin.command: helm plugin remove diff
   when:
     - installed_helm_diff_plugin_version.rc == 0
     - helm_diff_plugin_version not in installed_helm_diff_plugin_version.stdout
 
 - name: Install Helm diff plugin
-  ansible.builtin.command: /usr/local/bin/helm plugin install https://github.com/databus23/helm-diff --version {{ helm_diff_plugin_version }}
+  ansible.builtin.command: helm plugin install https://github.com/databus23/helm-diff --version {{ helm_diff_plugin_version }}
   when: >
     installed_helm_diff_plugin_version.rc != 0 or
     helm_diff_plugin_version not in installed_helm_diff_plugin_version.stdout

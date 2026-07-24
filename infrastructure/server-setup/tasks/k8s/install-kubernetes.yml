@@ -1,11 +1,5 @@
-- name: Create keyrings directory
-  ansible.builtin.file:
-    path: /etc/apt/keyrings
-    state: directory
-    mode: '0755'
-
 - name: Download Kubernetes APT key
-  get_url:
+  ansible.builtin.get_url:
     url: "https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/deb/Release.key"
     dest: /tmp/kubernetes.key
     mode: '0644'

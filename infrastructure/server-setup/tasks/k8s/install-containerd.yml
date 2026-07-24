@@ -18,19 +18,37 @@
   ignore_errors: true
 
 - name: Remove Docker's official GPG key if it exists
-  shell: rm -f /etc/apt/trusted.gpg.d/docker.gpg
+  shell: rm -f /etc/apt/trusted.gpg.d/docker.gpg /etc/apt/sources.list.d/archive_uri-https_download_docker_com_linux_ubuntu-{{ ansible_distribution_release }}.list
   ignore_errors: true
 
-- name: Add Docker's official GPG key
-  shell: curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmour -o /etc/apt/trusted.gpg.d/docker.gpg
+- name: Download Docker APT key
+  ansible.builtin.get_url:
+    url: "https://download.docker.com/linux/ubuntu/gpg"
+    dest: /tmp/docker.key
+    mode: "0644"
 
-- name: Add Docker repository
-  shell: add-apt-repository -y "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+- name: Convert and install Docker APT key
+  ansible.builtin.command:
+    cmd: gpg --batch --yes --dearmor -o /etc/apt/keyrings/docker-apt-keyring.gpg /tmp/docker.key
+  changed_when: false
+
+- name: Ensure Docker APT key is readable by apt
+  ansible.builtin.file:
+    path: /etc/apt/keyrings/docker-apt-keyring.gpg
+    mode: "0644"
+
+- name: Add Docker APT repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker-apt-keyring.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    filename: docker
+    state: present
 
 - name: Install containerd
-  shell: |
-    apt-get update
-    apt-get install -y containerd.io
+  become: yes
+  ansible.builtin.apt:
+    update_cache: yes
+    name:
+      - containerd.io
 
 - name: Create containerd configuration directory
   shell: mkdir -p /etc/containerd

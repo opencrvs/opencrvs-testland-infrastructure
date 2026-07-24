@@ -96,7 +96,7 @@ curl_check_url() {
 check_internet() {
     local urls=(
         "https://raw.githubusercontent.com/"
-        "https://get.helm.sh"
+        "https://packages.buildkite.com"
         "https://pkgs.k8s.io"
         "https://archive.ubuntu.com"
         "https://changelogs.ubuntu.com"

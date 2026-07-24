@@ -57,7 +57,7 @@ jobs:
       ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v6
       - name: Install Traefik
         run: |
           touch environments/${ENV}/traefik/values.override.yaml
@@ -92,6 +92,28 @@ jobs:
 
           kill $STERN_PID 2>/dev/null || true
           exit $STATUS
+
+      - name: Install OpenTelemetry Collector
+        run: |
+          helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts || true
+          touch environments/${ENV}/opentelemetry/values.override.yaml
+          helm upgrade --install opentelemetry-collector open-telemetry/opentelemetry-collector \
+            --namespace traefik \
+            --create-namespace \
+            --namespace "opencrvs-deps-${ENV}" \
+            --set image.repository="otel/opentelemetry-collector-k8s" \
+            --set mode=deployment \
+            -f environments/${ENV}/opentelemetry/values.yaml \
+            -f environments/${ENV}/opentelemetry/values.override.yaml
+
+      - name: Cleanup Helm Locks
+        if: failure() || cancelled()
+        run: |
+          kubectl -n "opencrvs-deps-${ENV}" get secrets -l owner=helm -o json | \
+          jq -r '.items[] | select(.metadata.labels.status=="pending-install" or .metadata.labels.status=="pending-upgrade" or .metadata.labels.status=="pending-rollback") | .metadata.name' | \
+          xargs -r kubectl -n "opencrvs-deps-${ENV}" delete secret || \
+          echo "No helm locks found, all is good"
+
       - name: Send email
         if: always()
         run: |
