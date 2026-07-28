@@ -19,6 +19,10 @@ postgres:
 influxdb:
   host_data_path: /data/qa/influxdb
 
+events:
+  env:
+    DEFAULT_USER_PASSWORD: "test"
+
 # FIXME: Keep this value till first official v2.1.0 release.
 utilities:
   image:
