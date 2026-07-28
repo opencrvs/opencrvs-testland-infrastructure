@@ -17,6 +17,11 @@ countryconfig:
   secrets:
     reference-data-db-secret:
       - REFERENCE_DATA_DATABASE_URL
+
+events:
+  env:
+    DEFAULT_USER_PASSWORD: "test"
+
 postgres_on_deploy:
   secrets:
     reference-data-db-secret:
