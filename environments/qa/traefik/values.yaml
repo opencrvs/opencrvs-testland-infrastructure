@@ -8,16 +8,15 @@
 
 # Overwriting https://github.com/traefik/traefik-helm-chart/blob/master/traefik/values.yaml
 namespaceOverride: "traefik"
-logs:
-  general:
-    # "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL", "PANIC"
-    level: "INFO"
-    # format: "common" # For local environment
-    format: "json" # For server environment
-  access:
-    # -- To enable access logs
-    enabled: true
-    format: "json"
+log:
+  # "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL", "PANIC"
+  level: "INFO"
+  # format: "common" # For local environment
+  format: "json" # For server environment
+accessLog:
+  # -- To enable access logs
+  enabled: true
+  format: "json"
 
 ingressRoute:
   dashboard:
@@ -95,3 +94,15 @@ deployment:
 # nodeSelector: {}
 nodeSelector:
   traefik-role: ingress
+
+
+tracing:
+  serviceName: traefik
+  resourceAttributes:
+    deployment.environment.name: "qa"
+    service.namespace: traefik
+  otlp:
+    enabled: true
+    http:
+      enabled: true
+      endpoint: "http://opentelemetry-collector.opencrvs-deps-qa.svc.cluster.local:4318/v1/traces"

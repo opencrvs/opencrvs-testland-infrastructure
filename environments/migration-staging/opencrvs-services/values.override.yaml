@@ -6,6 +6,12 @@ hostname: migration-staging.opencrvs.dev
 env:
   APN_SERVICE_URL: apm-server.opencrvs-deps-qa.svc.cluster.local
   APN_ENVIRONMENT: migration-staging
+
+otel:
+  enabled: true
+  deployment_environment: development
+  exporter_otlp_endpoint: "http://opentelemetry-collector.opencrvs-deps-qa.svc.cluster.local:4318"
+
 countryconfig:
   env:
     OPENID_PROVIDER_CLAIMS: name,family_name,given_name,middle_name,birthdate,address

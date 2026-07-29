@@ -8,6 +8,12 @@ hostname: e2e.opencrvs.dev
 env:
   APN_SERVICE_URL: apm-server.opencrvs-deps-qa.svc.cluster.local
   APN_ENVIRONMENT: e2e
+
+otel:
+  enabled: true
+  deployment_environment: development
+  exporter_otlp_endpoint: "http://opentelemetry-collector.opencrvs-deps-qa.svc.cluster.local:4318"
+
 countryconfig:
   image:
     name: opencrvs-testland
