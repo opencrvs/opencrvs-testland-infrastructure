@@ -75,6 +75,7 @@ jobs:
           alert_email: ${{ secrets.ALERT_EMAIL }}
           backup_host_public_key: ${{ secrets.BACKUP_HOST_PUBLIC_KEY }}
           kube_cluster_env: ${{ inputs.environment }}
+          kube_master_node: ${{ vars.KUBE_MASTER_NODE }}
           kube_api_host: ${{ vars.KUBE_API_HOST }}
           kube_api_allowed_cidrs: ${{ vars.KUBE_API_ALLOWED_CIDRS }}
           kube_runner_token: ${{ secrets.GH_TOKEN }}

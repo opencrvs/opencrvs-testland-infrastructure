@@ -6,8 +6,8 @@ K8S_CA_CERT="/etc/kubernetes/pki/ca.crt"
 K8S_CA_KEY="/etc/kubernetes/pki/ca.key"
 K8S_ADMIN_KUBECONFIG="/etc/kubernetes/admin.conf"
 OUTPUT_BASE="./user-kubeconfigs"
-PUBLIC_API_SERVER_IP=${PUBLIC_API_SERVER_IP:-"localhost"}   # <--- <<< replace with your public IP address
-API_SERVER_PORT="6443"
+KUBE_API_HOST=${KUBE_API_HOST:-"localhost"}
+KUBE_API_PORT=${KUBE_API_PORT:-"6443"}
 ZIP_PASSWORD_PROMPT="Enter zip password (leave empty for no password): "
 ASK_PASSWORD=${ASK_PASSWORD:-yes}
 # Requires: zip, openssl, kubectl
@@ -38,7 +38,7 @@ openssl x509 -req -in "$USER_CSR" -CA "$K8S_CA_CERT" -CAkey "$K8S_CA_KEY" -CAcre
   -out "$USER_CERT" -days 365
 
 # ====== CLUSTER INFO (using ca.crt and YOUR public IP) ======
-echo "Setting cluster server to https://${PUBLIC_API_SERVER_IP}:${API_SERVER_PORT}"
+echo "Setting cluster server to https://${KUBE_API_HOST}:${KUBE_API_PORT}"
 CLUSTER_NAME="public-k8s-$(hostname -s)"
 CA_DATA=$(base64 -w0 "$K8S_CA_CERT")
 CERT_DATA=$(base64 -w0 "$USER_CERT")
@@ -50,7 +50,7 @@ kind: Config
 clusters:
 - cluster:
     certificate-authority-data: ${CA_DATA}
-    server: https://${PUBLIC_API_SERVER_IP}:${API_SERVER_PORT}
+    server: https://${KUBE_API_HOST}:${KUBE_API_PORT}
   name: ${CLUSTER_NAME}
 contexts:
 - context:

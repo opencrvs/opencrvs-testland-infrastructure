@@ -58,15 +58,12 @@ eviction_soft_imagefs: "20Gi"         # Minimum free space for container images 
 cluster_communication_ports:
     # Kubelet API (required for all nodes)
     - { port: 10250, proto: "tcp" }
-    # kube-scheduler (control plane only)
-    - { port: 10251, proto: "tcp" }
-    # kube-controller-manager (control plane only)
-    - { port: 10252, proto: "tcp" }
     # Overlay network (Calico/Weave/Flannel, if used—verify your CNI and usage)
     - { port: 7946, proto: "tcp" }   # Used by some CNIs (e.g., Flannel, Weave)
     - { port: 7946, proto: "udp" }   # Used by some CNIs (e.g., Flannel, Weave)
     - { port: 8472, proto: "udp" }   # VXLAN (Flannel/Calico; verify if needed)
     - { port: 4789, proto: "udp" }   # VXLAN (Calico; verify if needed)
+    - { port: 5473, proto: "tcp" }   # Typha (Calico)
     - { port: 179, proto: "tcp" }    # BGP (Calico)
     - { port: 179, proto: "udp" }    # BGP (Calico)
 

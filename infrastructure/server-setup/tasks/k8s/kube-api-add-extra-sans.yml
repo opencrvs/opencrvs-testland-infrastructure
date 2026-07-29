@@ -48,11 +48,13 @@
     merged_sans: >-
       {{
         (current_sans
-        + [kube_api_host | default(None)]
+        + [kube_api_host | default(None, true)]
         + root_config_sans
-        + [ansible_host | default(None)])
+        + [kube_master_node | default(None, true)]
+        + [ansible_host | default(None, true)])
         | select('defined')
         | reject('equalto', None)
+        | reject('equalto', '')
         | unique
         | list
       }}

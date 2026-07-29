@@ -4,7 +4,7 @@
     kubelet_node_ip: >-
       {{
         (
-          kube_api_host
+          kube_master_node
           if inventory_hostname in groups['master']
           else ansible_host
         ) | default(ansible_facts['default_ipv4']['address'], true)
