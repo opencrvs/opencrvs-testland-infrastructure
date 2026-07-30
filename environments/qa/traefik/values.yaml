@@ -84,6 +84,8 @@ additionalVolumeMounts:
 
 deployment:
   hostNetwork: true
+  podLabels:
+    service_name: traefik
   additionalVolumes:
     - name: acme
       hostPath:
