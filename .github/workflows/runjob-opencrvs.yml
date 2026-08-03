@@ -86,11 +86,7 @@ jobs:
             restore)
               namespace="opencrvs-deps-${{ inputs.environment }}"
               chart_arguments="--set restore.enabled=true"
-              job_names='[
-                "minio-restore",
-                "mongodb-restore",
-                "postgres-restore"
-              ]'
+              job_names='["minio-restore","mongodb-restore","postgres-restore"]'
               ;;
             *)
               echo "::error::Unsupported job name: ${{ inputs.job-name }}"
