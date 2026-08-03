@@ -79,8 +79,10 @@ jobs:
               namespace="opencrvs-deps-${{ inputs.environment }}"
               if [ "${BACKUP_ENVIRONMENT_MODE}" = "dump" ]; then
                 job_names='["minio-backup","mongodb-backup","postgres-backup"]'
-              else
+              else if [ "${BACKUP_ENVIRONMENT_MODE}" = "differential" ]; then
                 job_names='["minio-backup","mongodb-backup","postgres-backup-full"]'
+              else
+                echo "::error::Backup is not configured for this environment. Unsupported backup mode: ${BACKUP_ENVIRONMENT_MODE}"
               fi
               ;;
             restore)
