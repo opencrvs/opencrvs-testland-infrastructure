@@ -78,17 +78,9 @@ jobs:
               ;;
             backup)
               if [ "${BACKUP_ENVIRONMENT_MODE}" = "dump" ]; then
-                job_names='[
-                  "minio-backup",
-                  "mongodb-backup",
-                  "postgres-backup"
-                ]'
+                job_names='["minio-backup","mongodb-backup","postgres-backup"]'
               else
-                job_names='[
-                  "minio-backup",
-                  "mongodb-backup",
-                  "postgres-backup-full"
-                ]'
+                job_names='["minio-backup","mongodb-backup","postgres-backup-full"]'
               fi
               ;;
             restore)
