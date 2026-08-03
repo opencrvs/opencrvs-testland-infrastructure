@@ -75,13 +75,13 @@ jobs:
               ;;
             backup)
               if [ "${BACKUP_ENVIRONMENT_MODE}" = "dump" ]; then
-                job_matrix='[
+                job_names='[
                   "minio-backup",
                   "mongodb-backup",
                   "postgres-backup"
                 ]'
               else
-                job_matrix='[
+                job_names='[
                   "minio-backup",
                   "mongodb-backup",
                   "postgres-backup-full"
@@ -90,7 +90,7 @@ jobs:
               ;;
             restore)
               chart_arguments="--set restore.enabled=true"
-              job_matrix='[
+              job_names='[
                 "minio-restore",
                 "mongodb-restore",
                 "postgres-restore"
