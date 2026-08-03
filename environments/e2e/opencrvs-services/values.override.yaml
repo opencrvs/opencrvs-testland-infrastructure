@@ -4,6 +4,8 @@
 ##################################################################################
 hostname: e2e.opencrvs.dev
 
+platform:
+  imagePullPolicy: Always
 
 env:
   APN_SERVICE_URL: apm-server.opencrvs-deps-qa.svc.cluster.local

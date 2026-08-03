@@ -3,6 +3,8 @@
 # Unmanaged keys are preserved when this file is updated.
 ##################################################################################
 hostname: migration-production.opencrvs.dev
+platform:
+  imagePullPolicy: Always
 env:
   APN_SERVICE_URL: apm-server.opencrvs-deps-qa.svc.cluster.local
   APN_ENVIRONMENT: migration-production
