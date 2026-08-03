@@ -212,7 +212,7 @@ jobs:
         - name: Create job ${{ matrix.job-name }} from helm template and apply it
           run: |
             kubectl delete job -n ${namespace} --ignore-not-found=true ${{ matrix.job-name }}
-            kubectl create job --from=cronjob/${{ matrix.job-name }} ${{ matrix.job-name }};
+            kubectl create job -n ${namespace} --from=cronjob/${{ matrix.job-name }} ${{ matrix.job-name }};
             echo "✅ ${{ matrix.job-name }} job created successfully"
         - name: Checking ${{ matrix.job-name }} job status
           run: |
