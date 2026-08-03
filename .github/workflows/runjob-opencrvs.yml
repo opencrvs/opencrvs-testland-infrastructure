@@ -203,7 +203,7 @@ jobs:
   cronjob-job-run:
     name: ${{ matrix.job-name }}
     needs: prepare
-    if: inputs.job-name == 'backup' && inputs.job-name == 'restore'
+    if: inputs.job-name == 'backup' || inputs.job-name == 'restore'
     environment: ${{ inputs.environment }}
     env:
       namespace: opencrvs-deps-${{ inputs.environment }}
