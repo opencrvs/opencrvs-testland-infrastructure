@@ -136,13 +136,10 @@ jobs:
           name: opencrvs-${{ inputs.environment }}-values-file
           path: /tmp/opencrvs-${{ inputs.environment }}.json
           retention-days: 1
-  helm-job-run:
+  job-run:
     name: ${{ matrix.job-name }}
     needs: prepare
-    if: inputs.job-name != 'backup' && inputs.job-name != 'restore'
     environment: ${{ inputs.environment }}
-    env:
-      namespace: opencrvs-${{ inputs.environment }}
     runs-on:
       - self-hosted
       - k8s
@@ -154,11 +151,15 @@ jobs:
         job-name: ${{ fromJSON(needs.prepare.outputs.job-names) }}
     steps:
         - name: Download helm release values file into /tmp/opencrvs-${{ inputs.environment }}.json
+          if: inputs.job-name != 'backup' && inputs.job-name != 'restore'
           uses: actions/download-artifact@v8
           with:
             name: opencrvs-${{ inputs.environment }}-values-file
             path: /tmp
         - name: Create job ${{ matrix.job-name }} from helm template and apply it
+          if: inputs.job-name != 'backup' && inputs.job-name != 'restore'
+          env:
+            namespace: opencrvs-${{ inputs.environment }}
           run: |
             kubectl delete job -n ${namespace} --ignore-not-found=true ${{ matrix.job-name }}
             echo "Templating with version: ${{ needs.prepare.outputs.version }}"
@@ -174,39 +175,10 @@ jobs:
               oci://ghcr.io/opencrvs/opencrvs-services \
               | kubectl apply -n ${namespace} --wait=true -f -
             echo "✅ ${{ matrix.job-name }} job created successfully"
-        - name: Checking ${{ matrix.job-name }} job status
-          run: |
-            while true; do
-              kubectl wait --for=condition=ready pod -ljob-name=${{ matrix.job-name }} --timeout=300s -n ${namespace} && \
-              kubectl logs job/${{ matrix.job-name }} --all-containers -f -n ${namespace} && \
-              touch /tmp/logs_stramed-${namespace}-${{ matrix.job-name }}.txt || break; 
-              sleep 1; done &
-            echo "---------------------- Waiting for job completion ----------------------"
-            kubectl wait --for=condition=complete job/${{ matrix.job-name }} -n ${namespace} --timeout=600s; status=$? || true
-            [ $status -ne 0 ] && kubectl get pods -n ${namespace} --show-labels && kubectl describe pod -ljob-name=${job_name} -n ${namespace};
-            [ ! -f /tmp/logs_stramed-${namespace}-${{ matrix.job-name }}.txt ] && kubectl logs job/${{ matrix.job-name }} --all-containers -n ${namespace} || \
-              rm -vf /tmp/logs_stramed-${namespace}-${{ matrix.job-name }}.txt
-            kill %1 2>/dev/null && echo "Stopped log streaming" || true
-            exit $status
-
-  cronjob-job-run:
-    name: ${{ matrix.job-name }}
-    needs: prepare
-    if: inputs.job-name == 'backup' || inputs.job-name == 'restore'
-    environment: ${{ inputs.environment }}
-    env:
-      namespace: opencrvs-deps-${{ inputs.environment }}
-    runs-on:
-      - self-hosted
-      - k8s
-      - ${{ inputs.environment }}
-    strategy:
-      max-parallel: 1  # Ensure jobs run one by one
-      fail-fast: true  # Stop on first failure
-      matrix:
-        job-name: ${{ fromJSON(needs.prepare.outputs.job-names) }}
-    steps:
         - name: Create job ${{ matrix.job-name }} from helm template and apply it
+          if: inputs.job-name == 'backup' || inputs.job-name == 'restore'
+          env:
+            namespace: opencrvs-deps-${{ inputs.environment }}
           run: |
             kubectl delete job -n ${namespace} --ignore-not-found=true ${{ matrix.job-name }}
             kubectl create job -n ${namespace} --from=cronjob/${{ matrix.job-name }} ${{ matrix.job-name }};
