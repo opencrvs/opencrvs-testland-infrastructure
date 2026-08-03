@@ -1,0 +1,174 @@
+name: 06. Manual job run
+run-name: "Run job ${{ inputs.job-name }} on ${{ inputs.environment }} environment"
+on:
+  workflow_dispatch:
+    inputs:
+      job-name:
+        description: "Job name"
+        required: true
+        default: "data-seed"
+        type: choice
+        options:
+          - "data-seed"
+          - "reindex"
+          - "backup"
+          - "restore"
+          - "data-cleanup"
+      environment:
+        description: "Target environment"
+        required: true
+        default: "development"
+        type: choice
+        options:
+          - ""
+  workflow_call:
+    inputs:
+      job-name:
+        type: string
+        required: true
+      environment:
+        type: string
+        required: true
+jobs:
+  approve:
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    steps:
+      - name: Waiting for manual approval
+        if: ${{ (vars.APPROVAL_REQUIRED || 'false') == 'true' }}
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.TOKEN }}
+          approvers: ${{ vars.GH_APPROVERS }}
+          minimum-approvals: ${{ inputs.job-name == 'data-cleanup' && 3 || 1 }}
+          issue-title: "Run ${{ inputs.job-name }} job on ${{ inputs.environment }} environment"
+          issue-body: >
+            Please approve or deny job ${{ inputs.job-name }} on ${{ inputs.environment }} environment
+            initiated from GitHub Actions by @${{ github.actor }}.
+          exclude-workflow-initiator-as-approver: false
+  prepare:
+    needs: approve
+    outputs:
+      values-file: ${{ steps.get-values.outputs.values-file }}
+      version: ${{ steps.helm-version.outputs.version }}
+      job-names: ${{ steps.job-names.outputs.job-names }}
+    env:
+      namespace: opencrvs-${{ inputs.environment }}
+    runs-on:
+      - self-hosted
+      - k8s
+      - ${{ inputs.environment }}
+    steps:
+      - name: Get job names
+        id: job-names
+        run: |
+          case "${{ inputs.job-name }}" in
+            data-cleanup)
+              job_names='["data-cleanup","postgres-on-deploy","data-migration","data-migration-analytics"]'
+              ;;
+            reindex)
+              job_names='["elasticsearch-reindex"]'
+              ;;
+            data-seed|backup|restore)
+              job_names='["${{ inputs.job-name }}"]'
+              ;;
+            *)
+              echo "::error::Unsupported job name: ${{ inputs.job-name }}"
+              exit 1
+              ;;
+          esac
+
+          echo "job-names=${job_names}" >> "$GITHUB_OUTPUT"
+      - name: Get deployed Helm chart version
+        id: helm-version
+        run: |
+          if ! helm list -n ${namespace} | grep -q opencrvs; then
+            echo "❌ Error: No OpenCRVS Helm release found in namespace"
+            echo "or there is in-progress deployment"
+            exit 1
+          fi
+          
+          DEPLOYED_VERSION=$(helm list -n ${namespace} -o json | jq -r '.[] | select(.name=="opencrvs") | .chart' | sed 's/opencrvs-services-//')
+          
+          if [ -z "$DEPLOYED_VERSION" ]; then
+            echo "❌ Error: Could not determine deployed version"
+            exit 1
+          fi
+          
+          echo "version=$DEPLOYED_VERSION" >> $GITHUB_OUTPUT
+          echo "📊 Using deployed Helm chart version: $DEPLOYED_VERSION"
+      - name: Get helm release values and Quote specific fields that are commonly numeric
+        id: get-values
+        run: |
+          helm get values opencrvs -n ${namespace} -ojson | \
+            jq '
+              if has("image") and (.image | has("tag")) and (.image.tag | type == "number") then
+                .image.tag = (.image.tag | tostring)
+              else . end |
+              if has("version") and (.version | type == "number") then
+                .version = (.version | tostring)
+              else . end |
+              if has("service") and (.service | has("port")) and (.service.port | type == "number") then
+                .service.port = (.service.port | tostring)
+              else . end
+            ' > /tmp/${namespace}.json
+            echo "values-file=/tmp/${namespace}.json" >> $GITHUB_OUTPUT
+
+      - name: Upload helm release values file /tmp/opencrvs-${{ inputs.environment }}.json
+        uses: actions/upload-artifact@v7
+        with:
+          name: opencrvs-${{ inputs.environment }}-values-file
+          path: /tmp/opencrvs-${{ inputs.environment }}.json
+          retention-days: 1
+  job-run:
+    name: ${{ matrix.job-name }}
+    needs: prepare
+    environment: ${{ inputs.environment }}
+    env:
+      namespace: opencrvs-${{ inputs.environment }}
+    runs-on:
+      - self-hosted
+      - k8s
+      - ${{ inputs.environment }}
+    strategy:
+      max-parallel: 1  # Ensure jobs run one by one
+      fail-fast: true  # Stop on first failure
+      matrix:
+        job-name: ${{ fromJSON(needs.prepare.outputs.job-names) }}
+    steps:
+        - name: Download helm release values file into /tmp/opencrvs-${{ inputs.environment }}.json
+          uses: actions/download-artifact@v8
+          with:
+            name: opencrvs-${{ inputs.environment }}-values-file
+            path: /tmp
+        - name: Create job ${{ matrix.job-name }} from helm template and apply it
+          run: |
+            kubectl delete job -n ${namespace} --ignore-not-found=true ${{ matrix.job-name }}
+            echo "Templating with version: ${{ needs.prepare.outputs.version }}"
+            helm template \
+              --version ${{ needs.prepare.outputs.version }} \
+              --values ${{ needs.prepare.outputs.values-file }} \
+              --set data_cleanup.enabled=true \
+              --set data_seed.enabled=true \
+              --set data_seed.env.ACTIVATE_USERS="${{ vars.ACTIVATE_USERS || 'false' }}" \
+              --set elasticsearch.reindex_enabled=true \
+              --namespace ${namespace} \
+              --show-only templates/${{ matrix.job-name }}-job.yaml \
+              oci://ghcr.io/opencrvs/opencrvs-services \
+              | kubectl apply -n ${namespace} --wait=true -f -
+            echo "✅ ${{ matrix.job-name }} job created successfully"
+        - name: Checking ${{ matrix.job-name }} job status
+          run: |
+            while true; do
+              kubectl wait --for=condition=ready pod -ljob-name=${{ matrix.job-name }} --timeout=300s -n ${namespace} && \
+              kubectl logs job/${{ matrix.job-name }} --all-containers -f -n ${namespace} && \
+              touch /tmp/logs_stramed-${namespace}-${{ matrix.job-name }}.txt || break; 
+              sleep 1; done &
+            echo "---------------------- Waiting for job completion ----------------------"
+            kubectl wait --for=condition=complete job/${{ matrix.job-name }} -n ${namespace} --timeout=600s; status=$? || true
+            [ $status -ne 0 ] && kubectl get pods -n ${namespace} --show-labels && kubectl describe pod -ljob-name=${job_name} -n ${namespace};
+            [ ! -f /tmp/logs_stramed-${namespace}-${{ matrix.job-name }}.txt ] && kubectl logs job/${{ matrix.job-name }} --all-containers -n ${namespace} || \
+              rm -vf /tmp/logs_stramed-${namespace}-${{ matrix.job-name }}.txt
+            kill %1 2>/dev/null && echo "Stopped log streaming" || true
+            exit $status
