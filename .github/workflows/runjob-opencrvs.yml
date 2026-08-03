@@ -3,6 +3,13 @@ run-name: "Run job ${{ inputs.job-name }} on ${{ inputs.environment }} environme
 on:
   workflow_dispatch:
     inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "development"
+        type: choice
+        options:
+          - ""
       job-name:
         description: "Job name"
         required: true
@@ -14,19 +21,12 @@ on:
           - "backup"
           - "restore"
           - "data-cleanup"
-      environment:
-        description: "Target environment"
-        required: true
-        default: "development"
-        type: choice
-        options:
-          - ""
   workflow_call:
     inputs:
-      job-name:
+      environment:
         type: string
         required: true
-      environment:
+      job-name:
         type: string
         required: true
 jobs:
