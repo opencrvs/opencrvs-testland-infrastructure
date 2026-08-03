@@ -52,7 +52,8 @@ jobs:
     outputs:
       values-file: ${{ steps.get-values.outputs.values-file }}
       version: ${{ steps.helm-version.outputs.version }}
-      job-names: ${{ steps.job-names.outputs.job-names }}
+      job-names: ${{ steps.profile.outputs.job-names }}
+      namespace: ${{ steps.profile.outputs.namespace }}
     env:
       namespace: opencrvs-${{ inputs.environment }}
     runs-on:
@@ -61,8 +62,9 @@ jobs:
       - ${{ inputs.environment }}
     steps:
       - name: Get job names
-        id: job-names
+        id: profile
         run: |
+          namespace="opencrvs-${{ inputs.environment }}"
           case "${{ inputs.job-name }}" in
             data-cleanup)
               job_names='["data-cleanup","postgres-on-deploy","data-migration","data-migration-analytics"]'
@@ -74,6 +76,7 @@ jobs:
               job_names='["data-seed","elasticsearch-reindex"]'
               ;;
             backup)
+              namespace="opencrvs-deps-${{ inputs.environment }}"
               if [ "${BACKUP_ENVIRONMENT_MODE}" = "dump" ]; then
                 job_names='["minio-backup","mongodb-backup","postgres-backup"]'
               else
@@ -81,6 +84,7 @@ jobs:
               fi
               ;;
             restore)
+              namespace="opencrvs-deps-${{ inputs.environment }}"
               chart_arguments="--set restore.enabled=true"
               job_names='[
                 "minio-restore",
@@ -95,6 +99,7 @@ jobs:
           esac
 
           echo "job-names=${job_names}" >> "$GITHUB_OUTPUT"
+          echo "namespace=${namespace}" >> "$GITHUB_OUTPUT"
       - name: Get deployed Helm chart version
         id: helm-version
         run: |
@@ -140,6 +145,8 @@ jobs:
     name: ${{ matrix.job-name }}
     needs: prepare
     environment: ${{ inputs.environment }}
+    env:
+      namespace: ${{ needs.prepare.outputs.namespace }}
     runs-on:
       - self-hosted
       - k8s
@@ -158,8 +165,6 @@ jobs:
             path: /tmp
         - name: Create job ${{ matrix.job-name }} from helm template and apply it
           if: inputs.job-name != 'backup' && inputs.job-name != 'restore'
-          env:
-            namespace: opencrvs-${{ inputs.environment }}
           run: |
             kubectl delete job -n ${namespace} --ignore-not-found=true ${{ matrix.job-name }}
             echo "Templating with version: ${{ needs.prepare.outputs.version }}"
@@ -177,8 +182,6 @@ jobs:
             echo "✅ ${{ matrix.job-name }} job created successfully"
         - name: Create job ${{ matrix.job-name }} from helm template and apply it
           if: inputs.job-name == 'backup' || inputs.job-name == 'restore'
-          env:
-            namespace: opencrvs-deps-${{ inputs.environment }}
           run: |
             kubectl delete job -n ${namespace} --ignore-not-found=true ${{ matrix.job-name }}
             kubectl create job -n ${namespace} --from=cronjob/${{ matrix.job-name }} ${{ matrix.job-name }};
