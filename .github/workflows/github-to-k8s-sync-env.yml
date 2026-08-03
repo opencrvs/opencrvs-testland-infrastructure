@@ -10,7 +10,10 @@ on:
         default: "development"
         type: choice
         options:
-          - ""
+          - e2e
+          - migration-production
+          - migration-staging
+          - qa
       namespace_template:
         description: "Secrets mapping template"
         default: "opencrvs"

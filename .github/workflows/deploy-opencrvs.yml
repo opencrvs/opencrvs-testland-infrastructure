@@ -1,11 +1,11 @@
 name: 03. Deploy OpenCRVS
-run-name: "Deploy OpenCRVS on ${{ inputs.environment }} (core: ${{ inputs.core-image-tag }}, country: ${{ inputs.countryconfig-image-tag }})"
+run-name: "Deploy OpenCRVS on ${{ inputs.environment }} (core: ${{ inputs.core-image-tag }})"
 on:
   workflow_call:
     inputs:
+      # testland (the countryconfig image) ships in core and always carries the
+      # core tag, so a single core-image-tag drives both images.
       core-image-tag:
-        type: string
-      countryconfig-image-tag:
         type: string
       data-seed-enabled:
         type: boolean
@@ -14,17 +14,13 @@ on:
   workflow_dispatch:
     inputs:
       core-image-tag:
-        description: "Tag of the core image"
-        required: true
-        default: "v2.1.0"
-      countryconfig-image-tag:
-        description: "Tag of the countryconfig image"
+        description: "Tag of the core image (also tags the testland/countryconfig image)"
         required: true
         default: "v2.1.0"
       data-seed-enabled:
         description: "Data seeding during deployment"
         required: false
-        default: "false"
+        default: false
         type: boolean
       environment:
         description: "Target environment"
@@ -32,7 +28,10 @@ on:
         default: "development"
         type: choice
         options:
-          - ""
+          - e2e
+          - migration-production
+          - migration-staging
+          - qa
 
 env:
   # Assuming chart version matches core image tag
@@ -51,12 +50,11 @@ jobs:
           approvers: ${{ vars.GH_APPROVERS }}
           minimum-approvals: 1
           issue-title: >
-            Deploy (${{ inputs.environment }}): core: ${{ inputs.core-image-tag }} 
-            country config: ${{ inputs.countryconfig-image-tag }}
+            Deploy (${{ inputs.environment }}): core: ${{ inputs.core-image-tag }}
 
           issue-body: >
-            Please approve or deny the deployment of core: ${{ inputs.core-image-tag }} 
-            country config: ${{ inputs.countryconfig-image-tag }} to ${{ inputs.environment }} 
+            Please approve or deny the deployment of core: ${{ inputs.core-image-tag }}
+            to ${{ inputs.environment }}
             initiated from GitHub Actions by @${{ github.actor }}.
 
           exclude-workflow-initiator-as-approver: false
@@ -75,8 +73,14 @@ jobs:
       BRANCH: ${{ github.ref_name }}
       GITHUB_ACTOR: ${{ github.actor }}
       CORE_IMAGE_TAG: ${{ inputs.core-image-tag }}
-      COUNTRYCONFIG_IMAGE_TAG: ${{ inputs.countryconfig-image-tag }}
-      COUNTRYCONFIG_IMAGE_NAME: ${{ secrets.DOCKERHUB_ACCOUNT || 'opencrvs' }}/${{ secrets.DOCKERHUB_REPO || 'ocrvs-farajaland'}}
+      # testland ships in core, so the countryconfig image carries the core tag
+      COUNTRYCONFIG_IMAGE_TAG: ${{ inputs.core-image-tag }}
+      # testland (packages/testland in opencrvs-core), published to ghcr by
+      # core's image matrix. No "/" in the name => inherits platform.repository
+      # (ghcr.io/opencrvs), resolving to ghcr.io/opencrvs/ocrvs-testland
+      # (public, no pull secret needed). The companion assets image resolves to
+      # ocrvs-testland:<tag>-assets.
+      COUNTRYCONFIG_IMAGE_NAME: ocrvs-testland
       SENDER_EMAIL_ADDRESS: ${{ secrets.SENDER_EMAIL_ADDRESS }}
       ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
     runs-on:
@@ -102,7 +106,6 @@ jobs:
           |-----|-------|
           | Environment URL | https://$PUBLIC_DOMAIN |
           | Core image tag | \`${{ inputs.core-image-tag }}\` |
-          | Country config image | \`${{ inputs.countryconfig-image-tag }}\` |
           | Branch name | \`${{ github.ref_name }}\` |
           | Reset environment | $RESET_MARK |
           EOF
@@ -175,7 +178,7 @@ jobs:
           fi
           EMAIL_PAYLOAD="{
             \"subject\": \"$subject\",
-            \"html\": \"${subject} with images '$CORE_IMAGE_TAG' for core and '$COUNTRYCONFIG_IMAGE_TAG' for country config.<br/>Deployed by GitHub user: @${GITHUB_ACTOR}\",
+            \"html\": \"${subject} with image tag '$CORE_IMAGE_TAG'.<br/>Deployed by GitHub user: @${GITHUB_ACTOR}\",
             \"from\": \"${SENDER_EMAIL_ADDRESS}\",
             \"to\": \"${ALERT_EMAIL}\"
           }"

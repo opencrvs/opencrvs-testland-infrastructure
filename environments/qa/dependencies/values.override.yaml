@@ -1,0 +1,25 @@
+##################################################################################
+# Environment-specific Helm overrides managed by yarn environment:init
+# Unmanaged keys are preserved when this file is updated.
+##################################################################################
+hostname: qa.opencrvs.dev
+
+elasticsearch:
+  host_data_path: /data/qa/elasticsearch
+
+minio:
+  host_data_path: /data/qa/minio
+
+mongodb:
+  host_data_path: /data/qa/mongodb
+
+postgres:
+  host_data_path: /data/qa/postgres
+
+influxdb:
+  host_data_path: /data/qa/influxdb
+
+# FIXME: Keep this value till first official v2.1.0 release.
+utilities:
+  image:
+    tag: 35b1e0f

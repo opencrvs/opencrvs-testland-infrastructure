@@ -1,0 +1,31 @@
+##################################################################################
+# Environment-specific Helm overrides managed by yarn environment:init
+# Unmanaged keys are preserved when this file is updated.
+##################################################################################
+hostname: qa.opencrvs.dev
+countryconfig:
+  image:
+    name: opencrvs-testland
+  env:
+    OPENID_PROVIDER_CLAIMS: name,family_name,given_name,middle_name,birthdate,address
+    OPENID_PROVIDER_CLIENT_ID: mock-client_id
+    ESIGNET_REDIRECT_URL: https://esignet-mock.qa.opencrvs.dev/authorize
+    MOSIP_API_USERINFO_URL: https://mosip-api.qa.opencrvs.dev/esignet/get-oidp-user-info
+    E2E_MINIO_BASE_URL: https://minio.qa.opencrvs.dev
+    VERIFIABLE_CREDENTIALS_SDJWT_ISSUE_URL: https://proxy.issuer.opencrvs.dev/openid4vc/sdjwt/issue
+    VERIFIABLE_CREDENTIALS_RAW_JWT_SIGN_URL: https://proxy.issuer.opencrvs.dev/raw/jwt/sign
+  secrets:
+    reference-data-db-secret:
+      - REFERENCE_DATA_DATABASE_URL
+
+events:
+  env:
+    DEFAULT_USER_PASSWORD: "test"
+
+postgres_on_deploy:
+  secrets:
+    reference-data-db-secret:
+      - REFERENCE_DATA_POSTGRES_USER
+      - REFERENCE_DATA_POSTGRES_PASSWORD
+      - REFERENCE_DATA_EDITOR_USER
+      - REFERENCE_DATA_EDITOR_PASSWORD
