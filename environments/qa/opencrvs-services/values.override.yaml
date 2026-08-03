@@ -3,6 +3,8 @@
 # Unmanaged keys are preserved when this file is updated.
 ##################################################################################
 hostname: qa.opencrvs.dev
+platform:
+  imagePullPolicy: Always
 countryconfig:
   image:
     name: opencrvs-testland
