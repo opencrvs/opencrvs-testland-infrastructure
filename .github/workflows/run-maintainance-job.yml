@@ -1,4 +1,4 @@
-name: 06. Manual job run
+name: 06. Maintenance job run
 run-name: "Run job ${{ inputs.job-name }} on ${{ inputs.environment }} environment"
 on:
   workflow_dispatch:
