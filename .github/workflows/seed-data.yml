@@ -62,23 +62,11 @@ jobs:
           
           echo "version=$DEPLOYED_VERSION" >> $GITHUB_OUTPUT
           echo "📊 Using deployed Helm chart version: $DEPLOYED_VERSION"
-      - name: Get helm release values and Quote specific fields that are commonly numeric
+      - name: Get helm release values
         id: get-values
         run: |
-          helm get values opencrvs -n ${namespace} -ojson | \
-            jq '
-              if has("image") and (.image | has("tag")) and (.image.tag | type == "number") then
-                .image.tag = (.image.tag | tostring)
-              else . end |
-              if has("version") and (.version | type == "number") then
-                .version = (.version | tostring)
-              else . end |
-              if has("service") and (.service | has("port")) and (.service.port | type == "number") then
-                .service.port = (.service.port | tostring)
-              else . end
-            ' > /tmp/${namespace}.json
+            helm get values opencrvs -n ${namespace} -ojson > /tmp/${namespace}.json
             echo "values-file=/tmp/${namespace}.json" >> $GITHUB_OUTPUT
-
       - name: Upload helm release values file /tmp/opencrvs-${{ inputs.environment }}.json
         uses: actions/upload-artifact@v7
         with:
