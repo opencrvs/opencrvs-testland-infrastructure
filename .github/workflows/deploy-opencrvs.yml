@@ -68,7 +68,6 @@ jobs:
       environment: ${{ inputs.environment }}
     secrets: inherit
   validate-predeploy:
-    needs: deploy
     uses: ./.github/workflows/validate-opencrvs.yml
     with:
       environment: ${{ inputs.environment }}
@@ -76,7 +75,9 @@ jobs:
       stage: predeploy
     secrets: inherit
   deploy:
-    needs: github-to-k8s-sync-env
+    needs:
+      - github-to-k8s-sync-env
+      - validate-predeploy
     environment: ${{ inputs.environment }}
     env:
       ENV: ${{ inputs.environment }}

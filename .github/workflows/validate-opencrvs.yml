@@ -51,10 +51,12 @@ jobs:
         - name: Create job validate-${{ inputs.stage }} from helm template and apply it
           run: |
             kubectl delete job -n ${namespace} --ignore-not-found=true validate-${{ inputs.stage }}
-            echo "Templating with version: ${{ inputs.core-branch }}"
+            echo "Templating chart ${{ env.OPENCRVS_CHART_VERSION }} with core image ${{ inputs.core-image-tag }}"
+            touch environments/${ENV}/opencrvs-services/values.override.yaml
             helm template \
-              --version ${{ needs.prepare.outputs.version }} \
-              --values ${{ needs.prepare.outputs.values-file }} \
+              --version ${{ env.OPENCRVS_CHART_VERSION }} \
+              -f environments/${ENV}/opencrvs-services/values.yaml \
+              -f environments/${ENV}/opencrvs-services/values.override.yaml \
               --namespace ${namespace} \
               --set validation.enabled=true \
               --show-only templates/validate-${{ inputs.stage }}-job.yaml \
