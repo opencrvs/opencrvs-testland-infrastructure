@@ -71,7 +71,7 @@ jobs:
               touch /tmp/logs_stramed-${namespace}-validate-${{ inputs.stage }}.txt || break; 
               sleep 1; done &
             echo "---------------------- Waiting for job completion ----------------------"
-            kubectl wait --for=condition=complete job/validate-${{ inputs.stage }} -n ${namespace} --timeout=600s; status=$? || true
+            kubectl wait --for=condition=complete job/validate-${{ inputs.stage }} -n ${namespace} --timeout=60s; status=$? || true
             [ $status -ne 0 ] && kubectl get pods -n ${namespace} --show-labels && kubectl describe pod -ljob-name=validate-${{ inputs.stage }} -n ${namespace};
             [ ! -f /tmp/logs_stramed-${namespace}-validate-${{ inputs.stage }}.txt ] && kubectl logs job/validate-${{ inputs.stage }} --all-containers -n ${namespace} || \
               rm -vf /tmp/logs_stramed-${namespace}-validate-${{ inputs.stage }}.txt
