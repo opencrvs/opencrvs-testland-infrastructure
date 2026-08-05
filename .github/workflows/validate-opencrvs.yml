@@ -90,7 +90,6 @@ jobs:
               --version ${{ needs.prepare.outputs.version }} \
               --values ${{ needs.prepare.outputs.values-file }} \
               --namespace ${namespace} \
-              --set platform.tag="${{ inputs.core-branch }}" \
               --set validation.enabled=true \
               --show-only templates/validate-${{ inputs.stage }}-job.yaml \
               oci://ghcr.io/opencrvs/opencrvs-services \
