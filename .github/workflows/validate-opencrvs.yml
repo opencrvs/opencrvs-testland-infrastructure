@@ -18,53 +18,23 @@ on:
         options:
           - "predeploy"
           - "postdeploy"
+      core-image-tag:
+        description: "Tag of the core image"
+        required: true
+        default: "v2.1.0"
+        type: string
   workflow_call:
     inputs:
       environment:
         type: string
       stage:
         type: string
+      core-image-tag:
+        type: string
+env:
+  # Assuming chart version matches core image tag
+  OPENCRVS_CHART_VERSION: "v2.1.0"
 jobs:
-  prepare:
-    outputs:
-      values-file: ${{ steps.get-values.outputs.values-file }}
-      version: ${{ steps.helm-version.outputs.version }}
-    env:
-      namespace: opencrvs-${{ inputs.environment }}
-    runs-on:
-      - self-hosted
-      - k8s
-      - ${{ inputs.environment }}
-    steps:
-      - name: Get deployed Helm chart version
-        id: helm-version
-        run: |
-          if ! helm list -n ${namespace} | grep -q opencrvs; then
-            echo "❌ Error: No OpenCRVS Helm release found in namespace"
-            echo "or there is in-progress deployment"
-            exit 1
-          fi
-          
-          DEPLOYED_VERSION=$(helm list -n ${namespace} -o json | jq -r '.[] | select(.name=="opencrvs") | .chart' | sed 's/opencrvs-services-//')
-          
-          if [ -z "$DEPLOYED_VERSION" ]; then
-            echo "❌ Error: Could not determine deployed version"
-            exit 1
-          fi
-          
-          echo "version=$DEPLOYED_VERSION" >> $GITHUB_OUTPUT
-          echo "📊 Using deployed Helm chart version: $DEPLOYED_VERSION"
-      - name: Get helm release values
-        id: get-values
-        run: |
-            helm get values opencrvs -n ${namespace} -ojson > /tmp/${namespace}.json
-            echo "values-file=/tmp/${namespace}.json" >> $GITHUB_OUTPUT
-      - name: Upload helm release values file /tmp/opencrvs-${{ inputs.environment }}.json
-        uses: actions/upload-artifact@v7
-        with:
-          name: opencrvs-${{ inputs.environment }}-values-file
-          path: /tmp/opencrvs-${{ inputs.environment }}.json
-          retention-days: 1
   validate:
     name: "Validate ${{ inputs.stage }}"
     needs: prepare
@@ -77,11 +47,7 @@ jobs:
       - k8s
       - ${{ inputs.environment }}
     steps:
-        - name: Download helm release values file into /tmp/opencrvs-${{ inputs.environment }}.json
-          uses: actions/download-artifact@v8
-          with:
-            name: opencrvs-${{ inputs.environment }}-values-file
-            path: /tmp
+        - uses: actions/checkout@v7
         - name: Create job validate-${{ inputs.stage }} from helm template and apply it
           run: |
             kubectl delete job -n ${namespace} --ignore-not-found=true validate-${{ inputs.stage }}

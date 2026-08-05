@@ -67,6 +67,14 @@ jobs:
     with:
       environment: ${{ inputs.environment }}
     secrets: inherit
+  validate-predeploy:
+    needs: deploy
+    uses: ./.github/workflows/validate-opencrvs.yml
+    with:
+      environment: ${{ inputs.environment }}
+      core-image-tag: ${{ inputs.core-image-tag }}
+      stage: predeploy
+    secrets: inherit
   deploy:
     needs: github-to-k8s-sync-env
     environment: ${{ inputs.environment }}
@@ -188,3 +196,11 @@ jobs:
                --fail \
                --silent \
                --show-error || echo "Error: Failed to reach countryconfig service"
+  validate-postdeploy:
+    needs: deploy
+    uses: ./.github/workflows/validate-opencrvs.yml
+    with:
+      environment: ${{ inputs.environment }}
+      core-image-tag: ${{ inputs.core-image-tag }}
+      stage: postdeploy
+    secrets: inherit
