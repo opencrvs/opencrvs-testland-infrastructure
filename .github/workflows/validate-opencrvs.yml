@@ -26,7 +26,6 @@ on:
         type: string
 jobs:
   prepare:
-    needs: approve
     outputs:
       values-file: ${{ steps.get-values.outputs.values-file }}
       version: ${{ steps.helm-version.outputs.version }}
