@@ -1,5 +1,5 @@
 name: 10. Validate pre/post deploy
-run-name: "Validate ${{ inputs.stage }} on ${{ inputs.environment }} environment"
+run-name: "Validate ${{ inputs.stage }} on ${{ inputs.environment }} environment (core: ${{ inputs.core-image-tag }})"
 on:
   workflow_dispatch:
     inputs:
