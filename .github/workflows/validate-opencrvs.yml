@@ -57,6 +57,7 @@ jobs:
               -f environments/${ENV}/opencrvs-services/values.yaml \
               -f environments/${ENV}/opencrvs-services/values.override.yaml \
               --namespace ${namespace} \
+              --set platform.tag="${{ inputs.core-image-tag }}" \
               --set validation.enabled=true \
               --show-only templates/validate-${{ inputs.stage }}-job.yaml \
               oci://ghcr.io/opencrvs/opencrvs-services \
