@@ -1,0 +1,123 @@
+name: 10. Validate pre/post deploy
+run-name: "Validate ${{ inputs.stage }} on ${{ inputs.environment }} environment"
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "development"
+        type: choice
+        options:
+          - ""
+      stage:
+        description: "Target stage"
+        required: true
+        default: "predeploy"
+        type: choice
+        options:
+          - "predeploy"
+          - "postdeploy"
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+      stage:
+        type: string
+jobs:
+  prepare:
+    needs: approve
+    outputs:
+      values-file: ${{ steps.get-values.outputs.values-file }}
+      version: ${{ steps.helm-version.outputs.version }}
+    env:
+      namespace: opencrvs-${{ inputs.environment }}
+    runs-on:
+      - self-hosted
+      - k8s
+      - ${{ inputs.environment }}
+    steps:
+      - name: Get deployed Helm chart version
+        id: helm-version
+        run: |
+          if ! helm list -n ${namespace} | grep -q opencrvs; then
+            echo "❌ Error: No OpenCRVS Helm release found in namespace"
+            echo "or there is in-progress deployment"
+            exit 1
+          fi
+          
+          DEPLOYED_VERSION=$(helm list -n ${namespace} -o json | jq -r '.[] | select(.name=="opencrvs") | .chart' | sed 's/opencrvs-services-//')
+          
+          if [ -z "$DEPLOYED_VERSION" ]; then
+            echo "❌ Error: Could not determine deployed version"
+            exit 1
+          fi
+          
+          echo "version=$DEPLOYED_VERSION" >> $GITHUB_OUTPUT
+          echo "📊 Using deployed Helm chart version: $DEPLOYED_VERSION"
+      - name: Get helm release values
+        id: get-values
+        run: |
+            helm get values opencrvs -n ${namespace} -ojson > /tmp/${namespace}.json
+            echo "values-file=/tmp/${namespace}.json" >> $GITHUB_OUTPUT
+      - name: Upload helm release values file /tmp/opencrvs-${{ inputs.environment }}.json
+        uses: actions/upload-artifact@v7
+        with:
+          name: opencrvs-${{ inputs.environment }}-values-file
+          path: /tmp/opencrvs-${{ inputs.environment }}.json
+          retention-days: 1
+  validate:
+    name: "Validate ${{ inputs.stage }}"
+    name: ${{ matrix.job-name }}
+    needs: prepare
+    environment: ${{ inputs.environment }}
+    env:
+      ENV: ${{ inputs.environment }}
+      namespace: opencrvs-${{ inputs.environment }}
+    runs-on:
+      - self-hosted
+      - k8s
+      - ${{ inputs.environment }}
+    steps:
+        - name: Download helm release values file into /tmp/opencrvs-${{ inputs.environment }}.json
+          uses: actions/download-artifact@v8
+          with:
+            name: opencrvs-${{ inputs.environment }}-values-file
+            path: /tmp
+        - name: Create job validate-${{ inputs.stage }} from helm template and apply it
+          run: |
+            kubectl delete job -n ${namespace} --ignore-not-found=true validate-${{ inputs.stage }}
+            echo "Templating with version: ${{ inputs.core-branch }}"
+            helm template \
+              --values k8s-env/opencrvs/values.yaml \
+              --namespace ${namespace} \
+              --set platform.tag="${{ inputs.core-branch }}" \
+              --set validation.enabled=true \
+              --show-only templates/validate-${{ inputs.stage }}-job.yaml \
+              core/charts/opencrvs-services \
+              | kubectl apply -n ${namespace} --wait=true -f -
+            echo "✅ validate-${{ inputs.stage }} job created successfully"
+        - name: Checking validate-${{ inputs.stage }} job status
+          run: |
+            while true; do
+              kubectl wait --for=condition=ready pod -ljob-name=validate-${{ inputs.stage }} --timeout=30s -n ${namespace} && \
+              kubectl logs job/validate-${{ inputs.stage }} --all-containers -f -n ${namespace} && \
+              touch /tmp/logs_stramed-${namespace}-validate-${{ inputs.stage }}.txt || break; 
+              sleep 1; done &
+            echo "---------------------- Waiting for job completion ----------------------"
+            kubectl wait --for=condition=complete job/validate-${{ inputs.stage }} -n ${namespace} --timeout=600s; status=$? || true
+            [ $status -ne 0 ] && kubectl get pods -n ${namespace} --show-labels && kubectl describe pod -ljob-name=validate-${{ inputs.stage }} -n ${namespace};
+            [ ! -f /tmp/logs_stramed-${namespace}-validate-${{ inputs.stage }}.txt ] && kubectl logs job/validate-${{ inputs.stage }} --all-containers -n ${namespace} || \
+              rm -vf /tmp/logs_stramed-${namespace}-validate-${{ inputs.stage }}.txt
+            kill %1 2>/dev/null && echo "Stopped log streaming" || true
+            kubectl logs job/validate-${{ inputs.stage }} -n "${namespace}" > opencrvs-validation.log
+            {
+              echo "## OpenCRVS ${{ inputs.stage }} validation"
+              echo
+              awk '
+                /<!-- OPENCRVS_VALIDATION_SUMMARY_START -->/ { capture=1; next }
+                /<!-- OPENCRVS_VALIDATION_SUMMARY_END -->/ { capture=0 }
+                capture
+              ' opencrvs-validation.log
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit $status
