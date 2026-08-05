@@ -87,12 +87,13 @@ jobs:
             kubectl delete job -n ${namespace} --ignore-not-found=true validate-${{ inputs.stage }}
             echo "Templating with version: ${{ inputs.core-branch }}"
             helm template \
-              --values k8s-env/opencrvs/values.yaml \
+              --version ${{ needs.prepare.outputs.version }} \
+              --values ${{ needs.prepare.outputs.values-file }} \
               --namespace ${namespace} \
               --set platform.tag="${{ inputs.core-branch }}" \
               --set validation.enabled=true \
               --show-only templates/validate-${{ inputs.stage }}-job.yaml \
-              core/charts/opencrvs-services \
+              oci://ghcr.io/opencrvs/opencrvs-services \
               | kubectl apply -n ${namespace} --wait=true -f -
             echo "✅ validate-${{ inputs.stage }} job created successfully"
         - name: Checking validate-${{ inputs.stage }} job status
