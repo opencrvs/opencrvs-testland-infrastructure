@@ -65,8 +65,8 @@ jobs:
       - name: Get job names
         id: profile
         env:
-          BACKUP_ENVIRONMENT_MODE: ${{ vars.BACKUP_ENVIRONMENT_MODE }}
-          RESTORE_ENVIRONMENT_NAME: ${{ vars.RESTORE_ENVIRONMENT_NAME }}
+          BACKUP_ENVIRONMENT_MODE: ${{ vars.BACKUP_ENVIRONMENT_MODE || '' }}
+          RESTORE_ENVIRONMENT_NAME: ${{ vars.RESTORE_ENVIRONMENT_NAME || '' }}
         run: |
           case "${{ inputs.job-name }}" in
             data-cleanup)
