@@ -37,7 +37,6 @@ env:
 jobs:
   validate:
     name: "Validate ${{ inputs.stage }}"
-    needs: prepare
     environment: ${{ inputs.environment }}
     env:
       ENV: ${{ inputs.environment }}
