@@ -1,0 +1,151 @@
+name: 06. Restore
+run-name: "Restore ${{ inputs.environment }} environment"
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "development"
+        type: choice
+        options:
+          - ""
+      backup-date:
+        description: "Backup date (YYYY-MM-DD)"
+        required: true
+        default: ""
+        type: string
+
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      backup-date:
+        type: string
+        required: true
+env:
+  namespace: opencrvs-deps-${{ inputs.environment }}
+
+jobs:
+  approve:
+    runs-on: ubuntu-26.04
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 60
+    steps:
+      - name: Waiting for manual approval
+        if: ${{ (vars.APPROVAL_REQUIRED || 'false') == 'true' }}
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.TOKEN }}
+          approvers: ${{ vars.GH_APPROVERS }}
+          minimum-approvals: ${{ inputs.job-name == 'data-cleanup' && 3 || 1 }}
+          issue-title: "Run ${{ inputs.job-name }} job on ${{ inputs.environment }} environment"
+          issue-body: >
+            Please approve or deny job ${{ inputs.job-name }} on ${{ inputs.environment }} environment
+            initiated from GitHub Actions by @${{ github.actor }}.
+          exclude-workflow-initiator-as-approver: false
+  prepare:
+    needs: approve
+    environment: ${{ inputs.environment }}
+    runs-on:
+      - self-hosted
+      - k8s
+      - ${{ inputs.environment }}
+    steps:
+      - name: Validate date
+        run: |
+          date -d "${{ inputs.restore-date }}" >/dev/null || { echo "❌ Error: Invalid date format. Please use YYYY-MM-DD."; exit 1; }
+      - name: Get job names
+        id: profile
+        env:
+          RESTORE_ENVIRONMENT_NAME: ${{ vars.RESTORE_ENVIRONMENT_NAME || '' }}
+        run: |
+          if [ "${RESTORE_ENVIRONMENT_NAME}" = "" ]; then
+            echo "::error::Restore is not configured for this environment. Please set RESTORE_ENVIRONMENT_NAME in the environment secrets."
+            exit 1
+          fi
+      - name: Get deployed Helm chart version
+        id: helm-version
+        run: |
+          if ! helm list -n ${namespace} | grep -q opencrvs-deps; then
+            echo "❌ Error: No OpenCRVS Helm release found in namespace ${namespace}"
+            echo "or there is in-progress deployment"
+            exit 1
+          fi
+          
+          DEPLOYED_VERSION=$(helm list -n ${namespace} -o json | jq -r '.[] | select(.name=="opencrvs-deps") | .chart' | sed 's/opencrvs-dependencies-chart-//')
+          
+          if [ -z "$DEPLOYED_VERSION" ]; then
+            echo "❌ Error: Could not determine deployed version"
+            exit 1
+          fi
+          
+          echo "version=$DEPLOYED_VERSION" >> $GITHUB_OUTPUT
+          echo "📊 Using deployed Helm chart version: $DEPLOYED_VERSION"
+      - name: Get helm release values
+        id: get-values
+        run: |
+            helm get values opencrvs-deps -n ${namespace} -ojson > /tmp/${namespace}.json
+            echo "values-file=/tmp/${namespace}.json" >> $GITHUB_OUTPUT
+      - name: Upload helm release values file /tmp/opencrvs-deps-${{ inputs.environment }}.json
+        uses: actions/upload-artifact@v7
+        with:
+          name: opencrvs-deps-${{ inputs.environment }}-values-file
+          path: /tmp/opencrvs-deps-${{ inputs.environment }}.json
+          retention-days: 1
+  job-run:
+    name: ${{ matrix.job-name }}
+    needs: prepare
+    environment: ${{ inputs.environment }}
+    runs-on:
+      - self-hosted
+      - k8s
+      - ${{ inputs.environment }}
+    strategy:
+      max-parallel: 1
+      fail-fast: true
+      matrix:
+        job-name:
+          - minio-restore
+          - postgres-restore
+    steps:
+        - name: Download helm release values file into /tmp/opencrvs-deps-${{ inputs.environment }}.json
+          uses: actions/download-artifact@v8
+          with:
+            name: opencrvs-deps-${{ inputs.environment }}-values-file
+            path: /tmp
+        - name: Create job ${{ matrix.job-name }} from helm template and apply it
+          run: |
+            kubectl delete job -n ${namespace} --ignore-not-found=true ${{ matrix.job-name }}
+            echo "Templating with version: ${{ needs.prepare.outputs.version }}"
+            helm template \
+              --version ${{ needs.prepare.outputs.version }} \
+              --values ${{ needs.prepare.outputs.values-file }} \
+              --set restore.enabled=true \
+              --set restore.cronjob=false \
+              --set backup_encryption_secret=backup-encryption-secret \
+              --set env.RESTORE_DATE=${{ inputs.backup-date }} \
+              --namespace ${namespace} \
+              --show-only templates/${{ matrix.job-name }}-cronjob.yaml \
+              oci://ghcr.io/opencrvs/opencrvs-dependencies-chart \
+              | kubectl apply -n ${namespace} --wait=true -f -
+            echo "✅ ${{ matrix.job-name }} job created successfully"
+        - name: Checking ${{ matrix.job-name }} job status
+          run: |
+            while true; do
+              kubectl wait --for=condition=ready pod -ljob-name=${{ matrix.job-name }} --timeout=300s -n ${namespace} && \
+              kubectl logs job/${{ matrix.job-name }} --all-containers -f -n ${namespace} && \
+              touch /tmp/logs_stramed-${namespace}-${{ matrix.job-name }}.txt || break; 
+              sleep 1; done &
+            echo "---------------------- Waiting for job completion ----------------------"
+            kubectl wait --for=condition=complete job/${{ matrix.job-name }} -n ${namespace} --timeout=600s; status=$? || true
+            [ $status -ne 0 ] && kubectl get pods -n ${namespace} --show-labels && kubectl describe pod -ljob-name=${job_name} -n ${namespace};
+            [ ! -f /tmp/logs_stramed-${namespace}-${{ matrix.job-name }}.txt ] && kubectl logs job/${{ matrix.job-name }} --all-containers -n ${namespace} || \
+              rm -vf /tmp/logs_stramed-${namespace}-${{ matrix.job-name }}.txt
+            kill %1 2>/dev/null && echo "Stopped log streaming" || true
+            exit $status
+  reindex:
+    uses: ./.github/workflows/reindex.yml
+    with:
+      environment: ${{ inputs.environment }}
