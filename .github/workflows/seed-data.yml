@@ -68,7 +68,7 @@ jobs:
             helm get values opencrvs -n ${namespace} -ojson > /tmp/${namespace}.json
             echo "values-file=/tmp/${namespace}.json" >> $GITHUB_OUTPUT
       - name: Upload helm release values file /tmp/opencrvs-${{ inputs.environment }}.json
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: opencrvs-${{ inputs.environment }}-values-file
           path: /tmp/opencrvs-${{ inputs.environment }}.json
