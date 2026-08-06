@@ -149,6 +149,7 @@ jobs:
             kill %1 2>/dev/null && echo "Stopped log streaming" || true
             exit $status
   reindex:
+    needs: job-run
     uses: ./.github/workflows/reindex.yml
     with:
       environment: ${{ inputs.environment }}
