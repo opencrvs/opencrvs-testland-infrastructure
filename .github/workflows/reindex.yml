@@ -53,7 +53,7 @@ jobs:
             echo "Templating with version: ${{ steps.helm-version.outputs.version }}"
             helm template \
               --version ${{ steps.helm-version.outputs.version }} \
-              --values ${namespace}.json \
+              --values ${{ steps.get-values.outputs.values-file }} \
               --namespace ${namespace} \
               --set elasticsearch.reindex_enabled=true \
               --show-only templates/elasticsearch-reindex-job.yaml \
