@@ -80,9 +80,9 @@ jobs:
               ;;
             backup)
               if [ "${BACKUP_ENVIRONMENT_MODE}" = "dump" ]; then
-                job_names='["minio-backup","mongodb-backup","postgres-backup"]'
+                job_names='["minio-backup","postgres-backup"]'
               elif [ "${BACKUP_ENVIRONMENT_MODE}" = "differential" ]; then
-                job_names='["minio-backup","mongodb-backup","postgres-backup-full"]'
+                job_names='["minio-backup","postgres-backup-full"]'
               else
                 echo "::error::Backup is not configured for this environment. Unsupported backup mode: ${BACKUP_ENVIRONMENT_MODE}"
                 exit 1
@@ -93,7 +93,7 @@ jobs:
                 echo "::error::Restore is not configured for this environment. Please set RESTORE_ENVIRONMENT_NAME in the environment secrets."
                 exit 1
               fi
-              job_names='["minio-restore","mongodb-restore","postgres-restore","elasticsearch-reindex"]'
+              job_names='["minio-restore","postgres-restore","elasticsearch-reindex"]'
               ;;
             *)
               echo "::error::Unsupported job name: ${{ inputs.job-name }}"
@@ -135,7 +135,7 @@ jobs:
     needs: prepare
     environment: ${{ inputs.environment }}
     env:
-      namespace: ${{ contains(fromJSON('["minio-backup","mongodb-backup","postgres-backup","postgres-backup-full","minio-restore","mongodb-restore","postgres-restore"]'), matrix.job-name) && format('opencrvs-deps-{0}', inputs.environment) || format('opencrvs-{0}', inputs.environment) }}
+      namespace: ${{ contains(fromJSON('["minio-backup","postgres-backup","postgres-backup-full","minio-restore","postgres-restore"]'), matrix.job-name) && format('opencrvs-deps-{0}', inputs.environment) || format('opencrvs-{0}', inputs.environment) }}
     runs-on:
       - self-hosted
       - k8s
@@ -152,7 +152,7 @@ jobs:
             name: opencrvs-${{ inputs.environment }}-values-file
             path: /tmp
         - name: Create job ${{ matrix.job-name }} from helm template and apply it
-          if: ${{ !contains(fromJSON('["minio-backup","mongodb-backup","postgres-backup","postgres-backup-full","minio-restore","mongodb-restore","postgres-restore"]'), matrix.job-name) }}
+          if: ${{ !contains(fromJSON('["minio-backup","postgres-backup","postgres-backup-full","minio-restore","postgres-restore"]'), matrix.job-name) }}
           run: |
             kubectl delete job -n ${namespace} --ignore-not-found=true ${{ matrix.job-name }}
             echo "Templating with version: ${{ needs.prepare.outputs.version }}"
@@ -169,7 +169,7 @@ jobs:
               | kubectl apply -n ${namespace} --wait=true -f -
             echo "✅ ${{ matrix.job-name }} job created successfully"
         - name: Create job ${{ matrix.job-name }} from cronjob
-          if: ${{ contains(fromJSON('["minio-backup","mongodb-backup","postgres-backup","postgres-backup-full","minio-restore","mongodb-restore","postgres-restore"]'), matrix.job-name) }}
+          if: ${{ contains(fromJSON('["minio-backup","postgres-backup","postgres-backup-full","minio-restore","postgres-restore"]'), matrix.job-name) }}
           run: |
             kubectl delete job -n ${namespace} --ignore-not-found=true ${{ matrix.job-name }}
             kubectl create job -n ${namespace} --from=cronjob/${{ matrix.job-name }} ${{ matrix.job-name }};
