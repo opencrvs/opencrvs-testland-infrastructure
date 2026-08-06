@@ -15,7 +15,7 @@ on:
           - qa
       backup-date:
         description: "Backup date (YYYY-MM-DD)"
-        required: true
+        required: false
         default: ""
         type: string
 
@@ -51,6 +51,9 @@ jobs:
   prepare:
     needs: approve
     environment: ${{ inputs.environment }}
+    outputs:
+      values-file: ${{ steps.get-values.outputs.values-file }}
+      version: ${{ steps.helm-version.outputs.version }}
     runs-on:
       - self-hosted
       - k8s
@@ -59,7 +62,7 @@ jobs:
       - name: Validate date
         run: |
           date -d "${{ inputs.restore-date }}" >/dev/null || { echo "❌ Error: Invalid date format. Please use YYYY-MM-DD."; exit 1; }
-      - name: Get job names
+      - name: Get restore profile for environment ${{ inputs.environment }}
         id: profile
         env:
           RESTORE_ENVIRONMENT_NAME: ${{ vars.RESTORE_ENVIRONMENT_NAME || '' }}
