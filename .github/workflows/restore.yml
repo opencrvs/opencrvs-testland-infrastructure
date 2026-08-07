@@ -76,17 +76,10 @@ jobs:
       - k8s
       - ${{ inputs.environment }}
     steps:
-<<<<<<< HEAD
-=======
       - name: Validate date
         run: |
           date -d "${{ inputs.restore-date }}" >/dev/null || { echo "❌ Error: Invalid date format. Please use YYYY-MM-DD."; exit 1; }
-<<<<<<< HEAD
->>>>>>> b11082f (tmp: added backup/restore)
       - name: Get restore profile for environment ${{ inputs.environment }}
-=======
-      - name: Get job names
->>>>>>> a561844 (tmp: added backup/restore)
         id: profile
         env:
           RESTORE_ENVIRONMENT_NAME: ${{ vars.RESTORE_ENVIRONMENT_NAME || '' }}
@@ -178,10 +171,7 @@ jobs:
             kill %1 2>/dev/null && echo "Stopped log streaming" || true
             exit $status
   reindex:
-<<<<<<< HEAD
     needs: job-run
-=======
->>>>>>> a561844 (tmp: added backup/restore)
     uses: ./.github/workflows/reindex.yml
     with:
       environment: ${{ inputs.environment }}
