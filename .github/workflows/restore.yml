@@ -51,12 +51,9 @@ jobs:
   prepare:
     needs: approve
     environment: ${{ inputs.environment }}
-<<<<<<< HEAD
     outputs:
       values-file: ${{ steps.get-values.outputs.values-file }}
       version: ${{ steps.helm-version.outputs.version }}
-=======
->>>>>>> a561844 (tmp: added backup/restore)
     runs-on:
       - self-hosted
       - k8s
@@ -65,11 +62,7 @@ jobs:
       - name: Validate date
         run: |
           date -d "${{ inputs.restore-date }}" >/dev/null || { echo "❌ Error: Invalid date format. Please use YYYY-MM-DD."; exit 1; }
-<<<<<<< HEAD
       - name: Get restore profile for environment ${{ inputs.environment }}
-=======
-      - name: Get job names
->>>>>>> a561844 (tmp: added backup/restore)
         id: profile
         env:
           RESTORE_ENVIRONMENT_NAME: ${{ vars.RESTORE_ENVIRONMENT_NAME || '' }}
@@ -159,10 +152,7 @@ jobs:
             kill %1 2>/dev/null && echo "Stopped log streaming" || true
             exit $status
   reindex:
-<<<<<<< HEAD
     needs: job-run
-=======
->>>>>>> a561844 (tmp: added backup/restore)
     uses: ./.github/workflows/reindex.yml
     with:
       environment: ${{ inputs.environment }}
