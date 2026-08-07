@@ -35,7 +35,7 @@ on:
 
 env:
   # Assuming chart version matches core image tag
-  OPENCRVS_CHART_VERSION: "v2.1.0-ocrvs-9105"
+  OPENCRVS_CHART_VERSION: "v2.1.0"
 jobs:
   approve:
     environment: ${{ inputs.environment }}
