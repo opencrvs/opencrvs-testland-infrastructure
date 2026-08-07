@@ -12,6 +12,7 @@ on:
           - e2e
           - migration-production
           - migration-staging
+          - production
           - qa
 env:
   DEPENDENCIES_CHART_VERSION: "v2.1.0"

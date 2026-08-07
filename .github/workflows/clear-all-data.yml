@@ -12,6 +12,7 @@ on:
           - e2e
           - migration-production
           - migration-staging
+          - production
           - qa
   workflow_call:
     inputs:
