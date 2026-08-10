@@ -82,7 +82,7 @@
         group: root
         mode: "0600"
         content: |
-          {{ backup_host_private_key | replace('\\n', '\n') }}
+          {{ backup_host_private_key | regex_replace('\\\\n', '\n') }}
       no_log: true
 
     - name: Save backup encryption passphrase
