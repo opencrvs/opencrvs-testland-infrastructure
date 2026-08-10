@@ -140,6 +140,34 @@
     - disk_encryption_key is defined
     - encryptedFileSystemPostCheck.stat.exists
 
+- name: Create systemd drop-in directories
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ item }}.service.d"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - containerd
+    - kubelet
+  when:
+    - disk_encryption_key is defined
+    - encryptedFileSystemPostCheck.stat.exists
+
+- name: Configure services to depend on encrypted data mount
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ item }}.service.d/reboot.service.conf"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Requires=reboot.service
+      After=reboot.service
+  loop:
+    - containerd
+    - kubelet
+
 - name: 'Setup systemd to mount encrypted folder'
   shell: systemctl daemon-reload && systemctl enable reboot.service
   when:
