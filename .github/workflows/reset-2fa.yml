@@ -13,6 +13,7 @@ on:
         default: "development"
         required: true
         options:
+          - production
           - non-prod
 jobs:
   approve:

@@ -11,37 +11,88 @@
   register: encryptedFileSystemPostCheck
   when: disk_encryption_key is defined
 
-- name: Check if Disk encryption key file exists
-  ansible.builtin.stat:
-    path: "{{ disk_encryption_key_path }}"
-  register: encryption_keyfile_stat
+- name: Check if backup server is defined
+  ansible.builtin.set_fact:
+    backup_server_defined: "{{ groups.get('backup', []) | length > 0 }}"
   when: disk_encryption_key is defined
 
-- name: Read existing Disk encryption key
-  ansible.builtin.slurp:
-    src: "{{ disk_encryption_key_path }}"
-  register: existing_disk_encryption_key
+- name: Configure disk encryption key locally
   when:
     - disk_encryption_key is defined
-    - encryption_keyfile_stat.stat.exists
+    - not backup_server_defined | bool
+  block:
+    - name: Check if Disk encryption key file exists
+      ansible.builtin.stat:
+        path: "{{ disk_encryption_key_path }}"
+      register: encryption_keyfile_stat
 
-- name: Fail if key exists and differs
-  ansible.builtin.fail:
-    msg: "Disk encryption key on disk does not match ansible variable! GitHub secret ENCRYPTION_KEY was updated!"
+    - name: Read existing Disk encryption key
+      ansible.builtin.slurp:
+        src: "{{ disk_encryption_key_path }}"
+      register: existing_disk_encryption_key
+      when: encryption_keyfile_stat.stat.exists
+
+    - name: Fail if key exists and differs
+      ansible.builtin.fail:
+        msg: "Disk encryption key on disk does not match ansible variable! GitHub secret ENCRYPTION_KEY was updated!"
+      when:
+        - encryption_keyfile_stat.stat.exists
+        - existing_disk_encryption_key['content'] | b64decode != ("DISK_ENCRYPTION_KEY=" ~ disk_encryption_key ~ "\n")
+
+    - name: Save disk encryption key into a file
+      ansible.builtin.copy:
+        dest: "{{ disk_encryption_key_path }}"
+        group: 1000
+        owner: 1000
+        mode: g+rwx
+        content: |
+          DISK_ENCRYPTION_KEY={{ disk_encryption_key }}
+
+- name: Use disk encryption key from backup server
   when:
     - disk_encryption_key is defined
-    - encryption_keyfile_stat.stat.exists
-    - existing_disk_encryption_key['content'] | b64decode != ("DISK_ENCRYPTION_KEY=" ~ disk_encryption_key ~ "\n")
+    - backup_server_defined | bool
+  block:
+    - name: Ensure backup server decryption secrets are provided
+      ansible.builtin.assert:
+        that:
+          - backup_host_private_key_base64 is defined
+          - backup_host_private_key_base64 | length > 0
+          - backup_encryption_passphrase is defined
+          - backup_encryption_passphrase | length > 0
+        fail_msg: "Backup server decrypt-on-boot requires BACKUP_HOST_PRIVATE_KEY and BACKUP_ENCRYPTION_PASSPHRASE secrets."
+      no_log: true
 
-- name: Save disk encryption key into a file
-  when: disk_encryption_key is defined
-  ansible.builtin.copy:
-    dest: "{{ disk_encryption_key_path }}"
-    group: 1000
-    owner: 1000
-    mode: g+rwx
-    content: |
-      DISK_ENCRYPTION_KEY={{ disk_encryption_key }}
+    - name: Ensure root SSH directory exists
+      ansible.builtin.file:
+        path: /root/.ssh
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Register backup server disk encryption key path
+      ansible.builtin.set_fact:
+        backup_server_disk_encryption_key_path: "{{ backup_server_user }}@{{ hostvars[groups['backup'][0]].ansible_host | default(groups['backup'][0]) }}:{{ remote_disk_encryption_key_path }}.enc"
+
+    - name: Save backup server private key
+      ansible.builtin.copy:
+        dest: /root/.ssh/backup_host_private_key
+        owner: root
+        group: root
+        mode: "0600"
+        content: "{{ backup_host_private_key_base64 | b64decode }}"
+      no_log: true
+
+    - name: Save backup encryption passphrase
+      ansible.builtin.copy:
+        dest: /root/backup-encryption-passphrase.txt
+        owner: root
+        group: root
+        mode: "0600"
+        content: |
+          {{ backup_encryption_passphrase }}
+      no_log: true
 
 - name: Ensure destination directory exists
   ansible.builtin.file:
@@ -70,15 +121,24 @@
     content: |
       [Unit]
       Description=Mount encrypted dir
+      Wants=network-online.target
+      After=network-online.target
+      Before=containerd.service kubelet.service
 
       [Service]
+      Type=oneshot
+      {% if backup_server_defined | bool %}
+      ExecStart=bash /opt/opencrvs/scripts/cryptfs/decrypt.sh -remote-file-encryption-key /root/backup-encryption-passphrase.txt -remote {{ backup_server_disk_encryption_key_path }} -f {{ data_file_path }} >> /var/log/cryptfs-reboot.log 2>&1
+      {% else %}
       ExecStart=bash /opt/opencrvs/scripts/cryptfs/decrypt.sh -key {{ disk_encryption_key_path }} -f {{ data_file_path }} >> /var/log/cryptfs-reboot.log 2>&1
+      {% endif %}
+      RemainAfterExit=yes
 
       [Install]
       WantedBy=multi-user.target
   when:
-   - disk_encryption_key is defined
-   - encryptedFileSystemPostCheck.stat.exists
+    - disk_encryption_key is defined
+    - encryptedFileSystemPostCheck.stat.exists
 
 - name: 'Setup systemd to mount encrypted folder'
   shell: systemctl daemon-reload && systemctl enable reboot.service
