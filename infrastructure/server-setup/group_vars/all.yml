@@ -18,8 +18,12 @@ backup_server_user_home: '/home/backup'
 # Amount of backups to keep (one week)
 amount_of_backups_to_keep: 7
 
-# Disk Encryption key location as an example (in production use a hardware security module)
+# Disk Encryption key location:
+# On single server deployments, the disk encryption key is stored on the same server as encrypted data.
 disk_encryption_key_path: /root/disk-encryption-key.txt
+# On deployments with a separate backup server, the disk encryption key is stored on the backup server 
+# and encrypted with backup encryption passphrase.
+remote_disk_encryption_key_path: /home/backup/disk-encryption-key.txt
 
 # Path to encrypted file with citizens data
 data_file_path: /cryptfs_file_sparse.img

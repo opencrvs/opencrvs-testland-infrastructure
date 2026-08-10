@@ -20,3 +20,5 @@
       include_tasks: tasks/backups/crontab-rotate-backup.yml
     - name: Setup server login emails
       include_tasks: tasks/backups/setup-email-alert.yml
+    - name: Store disk encryption key
+      include_tasks: tasks/backups/store-disk-encryption-key.yml

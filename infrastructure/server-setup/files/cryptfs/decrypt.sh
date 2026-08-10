@@ -27,30 +27,95 @@ while [[ "$1" =~ ^- && ! "$1" == "--" ]]; do case $1 in
   -key | --encryptionKeyFilepath )
     shift; ENCRYPTION_KEY_FILE_PATH=$1
     ;;
+  -remote-private-key | --remotePrivateKeyFilepath )
+    shift; REMOTE_PRIVATE_KEY_FILE_PATH=$1
+    ;;
+  -remote-file-encryption-key | --remoteFileEncryptionKeyFilepath )
+    shift; REMOTE_FILE_ENCRYPTION_KEY_PATH=$1
+    ;;
+  -remote | --remoteEncryptedKeyFilepath )
+    shift; REMOTE_ENCRYPTED_KEY_FILE_PATH=$1
+    ;;
 esac; shift; done
 if [[ "$1" == '--' ]]; then shift; fi
 
 # In this example, we load the disk encryption password from a file.
 # We recommend that the encryption key is served via a secure API from a Hardware Security Module
-if [[ -z "$ENCRYPTION_KEY_FILE_PATH" ]]; then
-  echo "ERROR: Disk encrytion key file path is required. Use -key or --encryptionKeyFilepath."
+if [[ -n "$REMOTE_ENCRYPTED_KEY_FILE_PATH" || -n "$REMOTE_FILE_ENCRYPTION_KEY_PATH" || -n "$REMOTE_PRIVATE_KEY_FILE_PATH" ]]; then
+  if [[ -z "$REMOTE_ENCRYPTED_KEY_FILE_PATH" || -z "$REMOTE_FILE_ENCRYPTION_KEY_PATH" || -z "$REMOTE_PRIVATE_KEY_FILE_PATH" ]]; then
+    echo "ERROR: Remote disk encryption key requires -remote, -remote-file-encryption-key, and -remote-private-key."
+    exit 1
+  fi
+
+  TMP_DIR=$(mktemp -d)
+  trap 'rm -rf "$TMP_DIR"' EXIT
+
+  ENCRYPTED_KEY_FILE_PATH="$TMP_DIR/disk-encryption-key.txt.enc"
+  ENCRYPTION_KEY_FILE_PATH="$TMP_DIR/disk-encryption-key.txt"
+
+  if ! scp -i "$REMOTE_PRIVATE_KEY_FILE_PATH" \
+    -o BatchMode=yes \
+    -o StrictHostKeyChecking=accept-new \
+    -o ConnectTimeout=30 \
+    "$REMOTE_ENCRYPTED_KEY_FILE_PATH" \
+    "$ENCRYPTED_KEY_FILE_PATH"; then
+    echo "ERROR: Failed to download disk encryption key from backup server."
+    exit 1
+  fi
+
+  if ! openssl enc -d -aes-256-cbc -pbkdf2 \
+    -pass file:"$REMOTE_FILE_ENCRYPTION_KEY_PATH" \
+    -in "$ENCRYPTED_KEY_FILE_PATH" \
+    -out "$ENCRYPTION_KEY_FILE_PATH"; then
+    echo "ERROR: Failed to decrypt disk encryption key from backup server."
+    exit 1
+  fi
+elif [[ -z "$ENCRYPTION_KEY_FILE_PATH" ]]; then
+  echo "ERROR: Disk encryption key file path is required. Use -key or --encryptionKeyFilepath."
   exit 1
 fi
 
-source $ENCRYPTION_KEY_FILE_PATH
+if [[ ! -f "$ENCRYPTION_KEY_FILE_PATH" ]]; then
+  echo "ERROR: Disk encryption key file does not exist: $ENCRYPTION_KEY_FILE_PATH"
+  exit 1
+fi
+
+DISK_ENCRYPTION_KEY=$(sed -n 's/^DISK_ENCRYPTION_KEY=//p' "$ENCRYPTION_KEY_FILE_PATH" | head -1)
+if [[ -z "$DISK_ENCRYPTION_KEY" ]]; then
+  echo "ERROR: Disk encryption key file must contain DISK_ENCRYPTION_KEY."
+  exit 1
+fi
 
 # create a loop device from the data file if it doesn't already exist
-LOOP_DEVICE=$(losetup -j /cryptfs_file_sparse.img | awk '{print substr($1, 1, length($1)-1)}' | head -1)
-echo $LOOP_DEVICE
+LOOP_DEVICE=$(losetup -j "$FS_FILE" | awk '{print substr($1, 1, length($1)-1)}' | head -1)
+echo "$LOOP_DEVICE"
 if [[ -z "$LOOP_DEVICE" ]]; then
-  LOOP_DEVICE=$(losetup --find --show $FS_FILE)
+  if ! LOOP_DEVICE=$(losetup --find --show "$FS_FILE"); then
+    echo "ERROR: Failed to create loop device for $FS_FILE."
+    exit 1
+  fi
   echo "Created new loop device $LOOP_DEVICE"
 else
   echo "Using existing loop device $LOOP_DEVICE"
 fi
 
 # open the LUKS device and set a mapping name
-echo $DISK_ENCRYPTION_KEY | cryptsetup -d - luksOpen $LOOP_DEVICE $DEV_MAP_NAME || true
+if cryptsetup status "$DEV_MAP_NAME" >/dev/null 2>&1; then
+  echo "Using existing LUKS device mapping $DEV_MAP_NAME"
+else
+  if ! echo "$DISK_ENCRYPTION_KEY" | cryptsetup -d - luksOpen "$LOOP_DEVICE" "$DEV_MAP_NAME"; then
+    echo "ERROR: Failed to open LUKS device mapping $DEV_MAP_NAME."
+    exit 1
+  fi
+fi
 
 # mount the device to a folder
-mount /dev/mapper/$DEV_MAP_NAME $MOUNT_PATH || true
+mkdir -p "$MOUNT_PATH"
+if mountpoint -q "$MOUNT_PATH"; then
+  echo "$MOUNT_PATH is already mounted"
+else
+  if ! mount "/dev/mapper/$DEV_MAP_NAME" "$MOUNT_PATH"; then
+    echo "ERROR: Failed to mount /dev/mapper/$DEV_MAP_NAME to $MOUNT_PATH."
+    exit 1
+  fi
+fi

@@ -64,9 +64,13 @@ jobs:
           JSON_WITHOUT_EMPTY=$(jq -c 'with_entries(select(.value | type == "string" and length > 0))' tmp_vars.json | jq -R )
           echo "EXTRA_VARS=$JSON_WITHOUT_EMPTY" >> $GITHUB_OUTPUT
         env:
+          repository: ${{ github.repository }}
           encrypted_disk_size: ${{ vars.DISK_SPACE }}
           disk_encryption_key: ${{ secrets.ENCRYPTION_KEY }}
-          repository: ${{ github.repository }}
+          backup_encryption_passphrase: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+          backup_sever_user: ${{ secrets.BACKUP_SERVER_USER }}
+          backup_host_private_key: ${{ secrets.BACKUP_HOST_PRIVATE_KEY }}
+          backup_host_public_key: ${{ secrets.BACKUP_HOST_PUBLIC_KEY }}
           smtp_host: ${{ secrets.SMTP_HOST }}
           smtp_port: ${{ secrets.SMTP_PORT }}
           smtp_user: ${{ secrets.SMTP_USERNAME }}
@@ -74,7 +78,6 @@ jobs:
           smtp_from: ${{ secrets.SENDER_EMAIL_ADDRESS}}
           smtp_password: ${{ secrets.SMTP_PASSWORD }}
           alert_email: ${{ secrets.ALERT_EMAIL }}
-          backup_host_public_key: ${{ secrets.BACKUP_HOST_PUBLIC_KEY }}
           kube_cluster_env: ${{ inputs.environment }}
           kube_master_node: ${{ vars.KUBE_MASTER_NODE }}
           kube_api_host: ${{ vars.KUBE_API_HOST }}
