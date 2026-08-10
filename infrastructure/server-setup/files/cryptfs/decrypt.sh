@@ -13,6 +13,11 @@ FS_FILE=/cryptfs_file_sparse.img  # -f, --file
 MOUNT_PATH=/data                  # -m, --mount
 DEV_MAP_NAME=cryptfs              # -n, --name
                                   # -key, --encryptionKeyFilepath (required - path to a file containing the decryption passphrase in the format DISK_ENCRYPTION_KEY=XXXX.)
+# Path to private key file for the remote backup server, used to download the encrypted disk encryption key.
+REMOTE_PRIVATE_KEY_FILE_PATH=/root/.ssh/backup_host_private_key
+# Path to file containing encryption passphrase to decrypt the encrypted disk encryption key.
+REMOTE_FILE_ENCRYPTION_KEY_PATH=/root/backup-encryption-passphrase.txt
+
 # options
 while [[ "$1" =~ ^- && ! "$1" == "--" ]]; do case $1 in
   -f | --file )

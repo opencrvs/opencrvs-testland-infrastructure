@@ -71,6 +71,10 @@
         group: root
         mode: "0700"
 
+    - name: Register backup server disk encryption key path
+      ansible.builtin.set_fact:
+        backup_server_disk_encryption_key_path: "{{ backup_server_user }}@{{ hostvars[groups['backup'][0]].ansible_host | default(groups['backup'][0]) }}:{{ remote_disk_encryption_key_path }}.enc"
+
     - name: Save backup server private key
       ansible.builtin.copy:
         dest: /root/.ssh/backup_host_private_key
@@ -78,7 +82,7 @@
         group: root
         mode: "0600"
         content: |
-          {{ backup_host_private_key }}
+          {{ backup_host_private_key | replace('\\n', '\n') }}
       no_log: true
 
     - name: Save backup encryption passphrase
@@ -125,7 +129,7 @@
       [Service]
       Type=oneshot
       {% if backup_server_defined | bool %}
-      ExecStart=bash /opt/opencrvs/scripts/cryptfs/decrypt.sh -remote-private-key /root/.ssh/backup_host_private_key -remote-file-encryption-key /root/backup-encryption-passphrase.txt -remote {{ backup_server_user }}@{{ hostvars[groups['backup'][0]].ansible_host | default(groups['backup'][0]) }}:{{ remote_disk_encryption_key_path }}.enc -f {{ data_file_path }} >> /var/log/cryptfs-reboot.log 2>&1
+      ExecStart=bash /opt/opencrvs/scripts/cryptfs/decrypt.sh -remote {{ backup_server_disk_encryption_key_path }} -f {{ data_file_path }} >> /var/log/cryptfs-reboot.log 2>&1
       {% else %}
       ExecStart=bash /opt/opencrvs/scripts/cryptfs/decrypt.sh -key {{ disk_encryption_key_path }} -f {{ data_file_path }} >> /var/log/cryptfs-reboot.log 2>&1
       {% endif %}
