@@ -56,8 +56,8 @@
     - name: Ensure backup server decryption secrets are provided
       ansible.builtin.assert:
         that:
-          - backup_host_private_key is defined
-          - backup_host_private_key | length > 0
+          - backup_host_private_key_base64 is defined
+          - backup_host_private_key_base64 | length > 0
           - backup_encryption_passphrase is defined
           - backup_encryption_passphrase | length > 0
         fail_msg: "Backup server decrypt-on-boot requires BACKUP_HOST_PRIVATE_KEY and BACKUP_ENCRYPTION_PASSPHRASE secrets."
@@ -81,9 +81,8 @@
         owner: root
         group: root
         mode: "0600"
-        content: |
-          {{ backup_host_private_key | replace('\\n', '\n') }}
-      no_log: false
+        content: "{{ backup_host_private_key_base64 | b64decode }}"
+      no_log: true
 
     - name: Save backup encryption passphrase
       ansible.builtin.copy:

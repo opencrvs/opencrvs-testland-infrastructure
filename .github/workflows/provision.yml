@@ -61,7 +61,15 @@ jobs:
         id: ansible-variables
         run: |
           echo '${{ toJSON(env) }}' > tmp_vars.json
-          JSON_WITHOUT_EMPTY=$(jq -c 'with_entries(select(.value | type == "string" and length > 0))' tmp_vars.json | jq -R )
+          JSON_WITHOUT_EMPTY=$(jq -c '
+            with_entries(select(.value | type == "string" and length > 0))
+            | if has("backup_host_private_key") then
+                .backup_host_private_key_base64 = (.backup_host_private_key | @base64)
+                | del(.backup_host_private_key)
+              else
+                .
+              end
+          ' tmp_vars.json | jq -R )
           echo "EXTRA_VARS=$JSON_WITHOUT_EMPTY" >> $GITHUB_OUTPUT
         env:
           repository: ${{ github.repository }}
