@@ -65,7 +65,12 @@ if [[ -n "$REMOTE_ENCRYPTED_KEY_FILE_PATH" || -n "$REMOTE_FILE_ENCRYPTION_KEY_PA
   ENCRYPTED_KEY_FILE_PATH="$TMP_DIR/disk-encryption-key.txt.enc"
   ENCRYPTION_KEY_FILE_PATH="$TMP_DIR/disk-encryption-key.txt"
 
+<<<<<<< HEAD
   if ! scp -i "$REMOTE_SSH_PRIVATE_KEY" \
+=======
+  if ! scp -i "$REMOTE_PRIVATE_KEY_FILE_PATH" \
+    -o BatchMode=yes \
+>>>>>>> 5dee1b6 (testing)
     -o StrictHostKeyChecking=accept-new \
     -o ConnectTimeout=30 \
     "$REMOTE_ENCRYPTED_KEY_FILE_PATH" \
