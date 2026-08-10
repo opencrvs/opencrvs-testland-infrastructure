@@ -8,6 +8,15 @@
 #
 # Copyright (C) The OpenCRVS Authors located at https://github.com/opencrvs/opencrvs-core/blob/master/AUTHORS.
 
+# NOTE: We recommend that the encryption key is served via a secure API from a Hardware Security Module
+# This script unlocks and mounts the encrypted OpenCRVS data filesystem.
+# It loads the disk encryption password from one of two sources:
+# - For environments without a backup server, it reads a local key file on the Kubernetes master node.
+# - For environments with a backup server, it downloads the encrypted key file over SSH, decrypts it
+#   with the local backup encryption passphrase, and reads the decrypted disk encryption password.
+# After the password is loaded, the script attaches the encrypted data file to a loop device,
+# opens the LUKS mapping, and mounts it to the configured data directory.
+
 # defaults, use options to override
 FS_FILE=/cryptfs_file_sparse.img  # -f, --file
 MOUNT_PATH=/data                  # -m, --mount
@@ -44,8 +53,6 @@ while [[ "$1" =~ ^- && ! "$1" == "--" ]]; do case $1 in
 esac; shift; done
 if [[ "$1" == '--' ]]; then shift; fi
 
-# In this example, we load the disk encryption password from a file.
-# We recommend that the encryption key is served via a secure API from a Hardware Security Module
 if [[ -n "$REMOTE_ENCRYPTED_KEY_FILE_PATH" || -n "$REMOTE_FILE_ENCRYPTION_KEY_PATH" || -n "$REMOTE_PRIVATE_KEY_FILE_PATH" ]]; then
   if [[ -z "$REMOTE_ENCRYPTED_KEY_FILE_PATH" || -z "$REMOTE_FILE_ENCRYPTION_KEY_PATH" || -z "$REMOTE_PRIVATE_KEY_FILE_PATH" ]]; then
     echo "ERROR: Remote disk encryption key requires -remote, -remote-file-encryption-key, and -remote-private-key."
