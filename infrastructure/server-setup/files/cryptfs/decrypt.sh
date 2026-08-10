@@ -66,7 +66,6 @@ if [[ -n "$REMOTE_ENCRYPTED_KEY_FILE_PATH" || -n "$REMOTE_FILE_ENCRYPTION_KEY_PA
   ENCRYPTION_KEY_FILE_PATH="$TMP_DIR/disk-encryption-key.txt"
 
   if ! scp -i "$REMOTE_PRIVATE_KEY_FILE_PATH" \
-    -o BatchMode=yes \
     -o StrictHostKeyChecking=accept-new \
     -o ConnectTimeout=30 \
     "$REMOTE_ENCRYPTED_KEY_FILE_PATH" \
