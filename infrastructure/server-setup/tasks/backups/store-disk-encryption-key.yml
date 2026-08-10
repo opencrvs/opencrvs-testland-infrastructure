@@ -50,7 +50,7 @@
 
     - name: Encrypt disk encryption key
       ansible.builtin.shell: |
-        export KEY_ENCRYPTION_PASSPHRASE="${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}"
+        export KEY_ENCRYPTION_PASSPHRASE="{{ backup_encryption_passphrase }}"
 
         openssl enc -aes-256-cbc -pbkdf2 \
           -pass env:KEY_ENCRYPTION_PASSPHRASE \
