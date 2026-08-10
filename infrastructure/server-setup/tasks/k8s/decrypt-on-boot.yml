@@ -82,8 +82,8 @@
         group: root
         mode: "0600"
         content: |
-          {{ backup_host_private_key | regex_replace('\\\\n', '\n') }}
-      no_log: true
+          {{ backup_host_private_key | replace('\\n', '\n') }}
+      no_log: false
 
     - name: Save backup encryption passphrase
       ansible.builtin.copy:
@@ -129,7 +129,7 @@
       [Service]
       Type=oneshot
       {% if backup_server_defined | bool %}
-      ExecStart=bash /opt/opencrvs/scripts/cryptfs/decrypt.sh -remote {{ backup_server_disk_encryption_key_path }} -f {{ data_file_path }} >> /var/log/cryptfs-reboot.log 2>&1
+      ExecStart=bash /opt/opencrvs/scripts/cryptfs/decrypt.sh -remote-file-encryption-key /root/backup-encryption-passphrase.txt -remote {{ backup_server_disk_encryption_key_path }} -f {{ data_file_path }} >> /var/log/cryptfs-reboot.log 2>&1
       {% else %}
       ExecStart=bash /opt/opencrvs/scripts/cryptfs/decrypt.sh -key {{ disk_encryption_key_path }} -f {{ data_file_path }} >> /var/log/cryptfs-reboot.log 2>&1
       {% endif %}
