@@ -13,7 +13,7 @@ env:
 
 otel:
   enabled: true
-  deployment_environment: development
+  deployment_environment: e2e
   exporter_otlp_endpoint: "http://opentelemetry-collector.opencrvs-deps-qa.svc.cluster.local:4318"
 
 countryconfig:
