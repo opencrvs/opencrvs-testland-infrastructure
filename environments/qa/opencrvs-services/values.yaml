@@ -23,6 +23,13 @@ env:
   APN_SERVICE_URL: "http://apm-server.opencrvs-deps-qa.svc.cluster.local:8200"
   MINIO_BUCKET: ocrvs
 
+
+otel:
+  enabled: true
+  deployment_environment: qa
+  exporter_otlp_endpoint: "http://opentelemetry-collector.opencrvs-deps-qa.svc.cluster.local:4318"
+
+
 influxdb:
   host: influxdb-0.influxdb.opencrvs-deps-qa.svc.cluster.local
 
