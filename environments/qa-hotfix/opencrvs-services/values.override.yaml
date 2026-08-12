@@ -4,6 +4,14 @@
 ##################################################################################
 hostname: qa-hotfix.opencrvs.dev
 
+env:
+  APN_SERVICE_URL: apm-server.opencrvs-deps-qa.svc.cluster.local
+  APN_ENVIRONMENT: qa-hotfix
+
+otel:
+  enabled: true
+  deployment_environment: qa-hotfix
+  exporter_otlp_endpoint: "http://opentelemetry-collector.opencrvs-deps-qa.svc.cluster.local:4318"
 
 countryconfig:
   image:
