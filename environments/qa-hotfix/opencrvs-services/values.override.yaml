@@ -4,7 +4,6 @@
 ##################################################################################
 hostname: qa-hotfix.opencrvs.dev
 
-
 countryconfig:
   image:
     name: opencrvs-testland
@@ -30,3 +29,8 @@ postgres_on_deploy:
       - REFERENCE_DATA_POSTGRES_PASSWORD
       - REFERENCE_DATA_EDITOR_USER
       - REFERENCE_DATA_EDITOR_PASSWORD
+
+data_seed:
+  env:
+    SUPER_USER_PASSWORD: 'password'
+    ACTIVATE_USERS: 'true'
