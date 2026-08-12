@@ -25,7 +25,7 @@
 
 - name: Install pgBackRest
   ansible.builtin.apt:
-    name: pgbackrest=2.59.0-1.pgdg26.04+1
+    name: "pgbackrest={{ pgbackrest_version }}-*"
     state: present
 
 - name: Configure pgBackRest global repo path
