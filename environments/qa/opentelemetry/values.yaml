@@ -1,38 +1,4 @@
-mode: deployment
-
-image:
-  repository: otel/opentelemetry-collector-k8s
-
-resources:
-  requests:
-    cpu: 100m
-    memory: 128Mi
-  limits:
-    cpu: 500m
-    memory: 512Mi
-
-ports:
-  jaeger-compact:
-    enabled: false
-  jaeger-thrift:
-    enabled: false
-  jaeger-grpc:
-    enabled: false
-  zipkin:
-    enabled: false
-
 config:
-  receivers:
-    otlp:
-      protocols:
-        grpc:
-          endpoint: ${env:MY_POD_IP}:4317
-        http:
-          endpoint: ${env:MY_POD_IP}:4318
-    prometheus: null
-    jaeger: null
-    zipkin: null
-
   exporters:
     otlp/elastic:
       endpoint: apm-server.opencrvs-deps-qa.svc.cluster.local:8200
@@ -40,34 +6,81 @@ config:
         insecure: true
   processors:
     batch:
-      timeout: 15s
       send_batch_size: 1024
-
+      timeout: 15s
     memory_limiter:
       check_interval: 5s
       limit_percentage: 80
       spike_limit_percentage: 25
-
+    transform/traces:
+      error_mode: ignore
+      trace_statements:
+      - set(span.attributes["http.route"], span.attributes["url.path"]) where resource.attributes["service.name"]
+        == "traefik" and span.attributes["url.path"] != nil
+      - replace_pattern(span.attributes["http.route"], "/+", "/") where resource.attributes["service.name"]
+        == "traefik" and span.attributes["http.route"] != nil
+      - replace_pattern(span.attributes["http.route"], "/([^/]*\\.[^/]*|[0-9]+|[0-9a-fA-F]{24}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})(/|$)",
+        "/#$$2") where resource.attributes["service.name"] == "traefik" and span.attributes["http.route"]
+        != nil
+      - set(span.name, Concat([span.attributes["http.request.method"], span.attributes["http.route"]],
+        " ")) where resource.attributes["service.name"] == "traefik" and span.attributes["http.request.method"]
+        != nil and span.attributes["http.route"] != nil
+      - delete_key(resource.attributes, "telemetry.sdk.language") where resource.attributes["service.name"]
+        == "traefik"
+      - set(span.name, Concat([span.attributes["http.method"], span.attributes["http.route"]],
+        " ")) where (resource.attributes["service.name"] == "opencrvs_client" or resource.attributes["service.name"]
+        == "opencrvs_login") and span.attributes["http.method"] != nil and span.attributes["http.route"]
+        != nil
+  receivers:
+    jaeger: null
+    otlp:
+      protocols:
+        grpc:
+          endpoint: ${env:MY_POD_IP}:4317
+        http:
+          endpoint: ${env:MY_POD_IP}:4318
+    prometheus: null
+    zipkin: null
   service:
+    pipelines:
+      logs: null
+      metrics:
+        exporters:
+        - otlp/elastic
+        processors:
+        - memory_limiter
+        - batch
+        receivers:
+        - otlp
+      traces:
+        exporters:
+        - otlp/elastic
+        processors:
+        - memory_limiter
+        - transform/traces
+        - batch
+        receivers:
+        - otlp
     telemetry:
       metrics:
         level: none
         readers: null
-    pipelines:
-      logs: null
-      metrics:
-        receivers:
-          - otlp
-        processors:
-          - memory_limiter
-          - batch
-        exporters:
-          - otlp/elastic
-      traces:
-        receivers:
-          - otlp
-        processors:
-          - memory_limiter
-          - batch
-        exporters:
-          - otlp/elastic
+image:
+  repository: otel/opentelemetry-collector-k8s
+mode: deployment
+ports:
+  jaeger-compact:
+    enabled: false
+  jaeger-grpc:
+    enabled: false
+  jaeger-thrift:
+    enabled: false
+  zipkin:
+    enabled: false
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi

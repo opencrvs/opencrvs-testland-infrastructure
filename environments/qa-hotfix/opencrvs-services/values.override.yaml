@@ -11,7 +11,7 @@ env:
 otel:
   enabled: true
   deployment_environment: qa-hotfix
-  exporter_otlp_endpoint: "http://opentelemetry-collector.opencrvs-deps-qa.svc.cluster.local:4318"
+  exporter_otlp_endpoint: "http://opentelemetry-collector.opencrvs-deps-qa.svc.cluster.local:4317"
 
 countryconfig:
   image:

@@ -5,15 +5,11 @@
 hostname: migration-production.opencrvs.dev
 platform:
   imagePullPolicy: Always
-env:
-  APN_SERVICE_URL: apm-server.opencrvs-deps-qa.svc.cluster.local
-  APN_ENVIRONMENT: migration-production
-
 
 otel:
   enabled: true
   deployment_environment: migration-production
-  exporter_otlp_endpoint: "http://opentelemetry-collector.opencrvs-deps-qa.svc.cluster.local:4318"
+  exporter_otlp_endpoint: "http://opentelemetry-collector.opencrvs-deps-qa.svc.cluster.local:4317"
 
 countryconfig:
   env:
