@@ -183,6 +183,8 @@ jobs:
             --set-string platform.tag="$CORE_IMAGE_TAG" \
             --set-string countryconfig.image.tag="$COUNTRYCONFIG_IMAGE_TAG" \
             --set countryconfig.image.name="$COUNTRYCONFIG_IMAGE_NAME" \
+            --set-string platform.imagePullPolicy=Always \
+            --set-string countryconfig.image.pullPolicy=Always \            
             --set data_seed.env.ACTIVATE_USERS="${{ vars.ACTIVATE_USERS || 'false' }}" \
             --set data_seed.enabled="$DATA_SEED_ENABLED" \
             --set env.CONTENT_SECURITY_POLICY_WILDCARD="${{ vars.CONTENT_SECURITY_POLICY_WILDCARD }}" \
