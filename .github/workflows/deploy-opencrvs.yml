@@ -159,6 +159,25 @@ jobs:
 
             kill $STERN_PID 2>/dev/null || true
             exit $STATUS
+
+      # The events service registers the country config's integrations (e.g.
+      # MOSIP) once, at startup, by asking auth for a short-lived bootstrap
+      # token and calling the country config's system/ready trigger. On a first
+      # install that request races auth and country config coming up; the retry
+      # budget is bounded, so losing the race leaves the integration
+      # unregistered until events happens to restart. mosip-api then
+      # authenticates as a client that does not exist, and the symptom surfaces
+      # far from the cause — registrations are never confirmed and no UIN is
+      # issued.
+      #
+      # Restarting events here re-runs the registration against a stack that is
+      # already serving. Safe to repeat: registration skips any integration name
+      # that already exists, so a rotated secret is never clobbered.
+      - name: Re-run startup integration registration
+        run: |
+          kubectl -n "opencrvs-${ENV}" rollout restart deployment/events
+          kubectl -n "opencrvs-${ENV}" rollout status deployment/events --timeout=5m
+
       - name: Cleanup Helm Locks
         if: failure() || cancelled()
         run: |

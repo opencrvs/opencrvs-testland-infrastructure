@@ -30,6 +30,14 @@ countryconfig:
   secrets:
     reference-data-db-secret:
       - REFERENCE_DATA_DATABASE_URL
+    # Country config seeds the MOSIP integration in the events service on
+    # startup with exactly this client id/secret, so mosip-api can authenticate
+    # as itself using the same pair (see environments/qa-hotfix/mosip-api).
+    # OPENCRVS_MOSIP_CLIENT_ID must be a UUID — countryconfig validates it at
+    # boot and exits if it is malformed.
+    mosip-integration-secret:
+      - OPENCRVS_MOSIP_CLIENT_ID:MOSIP_INTEGRATION_CLIENT_ID
+      - OPENCRVS_MOSIP_CLIENT_SECRET:MOSIP_INTEGRATION_CLIENT_SECRET
 
 postgres_on_deploy:
   secrets:

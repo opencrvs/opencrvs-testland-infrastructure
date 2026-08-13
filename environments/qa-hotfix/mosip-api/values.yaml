@@ -4,6 +4,13 @@ ingress:
 
 mosip_api:
   enabled: true
+  # The OpenCRVS system client this integration authenticates as. Same pair
+  # country config seeds into the events service, mapped to the names mosip-api
+  # reads (see environments/qa-hotfix/opencrvs-services).
+  secrets:
+    mosip-integration-secret:
+      - OPENCRVS_MOSIP_CLIENT_ID:OPENCRVS_CLIENT_ID
+      - OPENCRVS_MOSIP_CLIENT_SECRET:OPENCRVS_CLIENT_SECRET
 
 mosip_mock:
   enabled: true
