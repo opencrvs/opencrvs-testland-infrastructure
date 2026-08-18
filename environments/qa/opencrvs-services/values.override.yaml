@@ -16,6 +16,7 @@ countryconfig:
     E2E_MINIO_BASE_URL: https://minio.qa.opencrvs.dev
     VERIFIABLE_CREDENTIALS_SDJWT_ISSUE_URL: https://proxy.issuer.opencrvs.dev/openid4vc/sdjwt/issue
     VERIFIABLE_CREDENTIALS_RAW_JWT_SIGN_URL: https://proxy.issuer.opencrvs.dev/raw/jwt/sign
+    ENVIRONMENT_NAME: qa
   secrets:
     reference-data-db-secret:
       - REFERENCE_DATA_DATABASE_URL
@@ -25,7 +26,7 @@ countryconfig:
 
 events:
   env:
-    DEFAULT_USER_PASSWORD: 'test'
+    DEFAULT_USER_PASSWORD: "test"
 
 postgres_on_deploy:
   secrets:

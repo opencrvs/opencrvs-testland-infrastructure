@@ -24,6 +24,7 @@ countryconfig:
     OPENID_PROVIDER_CLIENT_ID: mock-client_id
     ESIGNET_REDIRECT_URL: https://esignet-mock.e2e.opencrvs.dev/authorize
     MOSIP_API_USERINFO_URL: https://mosip-api.e2e.opencrvs.dev/esignet/get-oidp-user-info
+    ENVIRONMENT_NAME: testland-e2e
 
     # ????
     # VERIFIABLE_CREDENTIALS_SDJWT_ISSUE_URL: https://proxy.issuer.opencrvs.dev/openid4vc/sdjwt/issue
