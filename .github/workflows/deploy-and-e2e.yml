@@ -373,7 +373,7 @@ jobs:
 
   # Cancellation is rare enough after this change to be worth reporting: the only
   # thing that races the nightly is a manual dispatch, and `concurrency: e2e`
-  # cancels rather than let two runs hit the single e2e environment at once.
+  # cancels rather than let two runs hit the single nightly environment at once.
   notify-slack-cancelled:
     name: Notify Slack on cancellation
     runs-on: ubuntu-24.04
@@ -384,6 +384,6 @@ jobs:
         uses: slackapi/slack-github-action@v1.26.0
         with:
           channel-id: "C08FCLKER8X"
-          slack-message: "🚫 E2E on `${{ needs.plan.outputs.core-branch }}` was cancelled — superseded by a newer run, or stopped by hand. Nothing ran to completion and the e2e environment is in whatever state it was left in. <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+          slack-message: "🚫 E2E on `${{ needs.plan.outputs.core-branch }}` was cancelled — superseded by a newer run, or stopped by hand. Nothing ran to completion and the nightly environment is in whatever state it was left in. <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

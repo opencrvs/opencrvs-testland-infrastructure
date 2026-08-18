@@ -13,10 +13,15 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 /**
- * The opt-in suite directory from core's `packages/testland/playwright.config.ts`.
- * Playwright decides whether these specs run at all from the same segment, so
- * classifying on it here keeps one definition of "regression spec" rather than
- * two that can drift.
+ * The opt-in suite directory from the `optInSuites` array in core's
+ * `packages/testland/playwright.config.ts`, which is where Playwright decides
+ * whether these specs run at all.
+ *
+ * This is a second copy of that value, in a second repository, and nothing
+ * enforces the pair. If they drift, the regression specs still run correctly —
+ * only the Slack message misfiles them, putting a regression failure in the
+ * standard group. The tests below pin the classification; the coupling is the
+ * reason the suite split is asserted rather than assumed.
  */
 const REGRESSION_SEGMENT = 'testcases/qa-testrail-testcases/'
 
@@ -99,10 +104,10 @@ export function readShardReports(reportsDir) {
  * `test` is dropped: it fails whenever a shard fails, which the failing-spec
  * groups already say better.
  */
-export function stageResultsFromNeeds(needs, { exclude = ['test'] } = {}) {
+export function stageResultsFromNeeds(needs) {
   return Object.fromEntries(
     Object.entries(needs)
-      .filter(([stage]) => !exclude.includes(stage))
+      .filter(([stage]) => stage !== 'test')
       .map(([stage, { result }]) => [stage, result])
   )
 }
@@ -218,7 +223,7 @@ function formatDuration(milliseconds) {
 
 const pluralise = (count, noun) => `${count} ${noun}${count === 1 ? '' : 's'}`
 
-function formatRegression({ regressionEnabled, regressionSpecCount }) {
+function formatRegression(regressionEnabled, regressionSpecCount) {
   // "regression: 0 specs" is deliberately reported rather than hidden: it is
   // the line that reveals a regression suite that silently stopped being
   // collected.
@@ -271,7 +276,7 @@ export function renderSlackMessage(summary, context) {
       : `${summary.tests.passed} passed, ${summary.tests.failed} failed`,
     ...(summary.tests.skipped > 0 ? [`${summary.tests.skipped} skipped`] : []),
     formatDuration(summary.wallClockMs),
-    formatRegression({ ...context, ...summary }),
+    formatRegression(context.regressionEnabled, summary.regressionSpecCount),
     `${pluralise(summary.tests.flaky, 'test')} rescued on retry`
   ]
 

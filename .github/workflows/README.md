@@ -221,7 +221,7 @@ That dispatch is guarded twice, because concurrency alone is not enough:
 
 ### Runtime bounds
 
-- `timeout-minutes: 40` on each shard job. Across 800 successful shard jobs the median was 9.5 min, p99 18.3 and the maximum ever 19.4 — against two observed runaways of 108 and 116 min. The headroom over 19.4 is not generic: Playwright shards by *test count*, and each regression spec is one `test()` carrying a whole declaration flow, so an unlucky shard taking two of them lands near 25 min.
+- `timeout-minutes: 40` on each shard job, which is roughly twice the worst healthy shard ever measured. The comment on that setting in `deploy-and-e2e.yml` carries the distribution it was derived from and why the headroom is load-bearing rather than generic — read it there before changing the value, not here.
 - The shard layout lives in one place, the `plan` job. The matrix, the `--shard=<n>/<count>` argument and the notify job's shard-set check all derive from it.
 
 ---

@@ -58,14 +58,14 @@ env:
   # Assuming chart version matches core image tag
   OPENCRVS_CHART_VERSION: "v2.1.0"
 jobs:
-  # The e2e environment is refreshed on demand by QA dispatching this workflow,
+  # The nightly environment is refreshed on demand by QA dispatching this workflow,
   # which would otherwise swap the deployment out from under a nightly suite
   # already running. The concurrency group above serialises deploys against
   # deploys, but during the ~19-minute test fan-out the nightly holds no job in
   # that group at all — so the group alone does not close this hole.
   guard-e2e-suite:
     name: Refuse to deploy under a running E2E suite
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # Listing workflow runs is all this job does, and an explicit grant means it
     # does not depend on whatever the repository's default token scope happens
     # to be — a guard that errors is a guard that blocks every deploy.

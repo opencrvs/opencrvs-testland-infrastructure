@@ -27,7 +27,7 @@ import {
 const parseJson = (value, fallback) =>
   value === undefined || value === '' ? fallback : JSON.parse(value)
 
-const reportsDir = process.argv[2] ?? process.env.REPORTS_DIR
+const reportsDir = process.argv[2]
 if (reportsDir === undefined) {
   console.error('Usage: main.mjs <reports-dir>')
   process.exit(2)
