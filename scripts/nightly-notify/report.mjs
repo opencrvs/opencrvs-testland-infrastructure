@@ -26,6 +26,9 @@ const REPO_ROOT_SEGMENT = 'packages/testland/'
 /** The artifact name the test job uploads, which is where the shard index comes from. */
 const SHARD_ARTIFACT_PATTERN = /^ctrf-e2e-shard-(\d+)(?:-|$)/
 
+const UNKNOWN_SPEC =
+  '(unknown spec — the CTRF reporter is in minimal mode and recorded no file paths)'
+
 /** Failing specs beyond this are summarised as a count: `chat.postMessage` caps text at 40k. */
 const MAX_LISTED_SPECS_PER_SUITE = 15
 
@@ -42,6 +45,12 @@ const FAILED_CONCLUSIONS = new Set(['failure', 'cancelled', 'timed_out'])
  * by a single character.
  */
 export function toSpecPath(filePath) {
+  // The reporter only records filePath when its `minimal` option is false. That
+  // is the default, but the default lives in core's playwright.config.ts — so
+  // say why the paths went missing rather than throwing and sending no message
+  // at all.
+  if (typeof filePath !== 'string') return UNKNOWN_SPEC
+
   const normalised = filePath.split(path.sep).join('/')
   const rootAt = normalised.lastIndexOf(REPO_ROOT_SEGMENT)
   return rootAt === -1 ? normalised : normalised.slice(rootAt)

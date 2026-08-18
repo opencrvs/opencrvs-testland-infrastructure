@@ -116,6 +116,21 @@ describe('toSpecPath', () => {
   })
 })
 
+describe('toSpecPath: the reporter stopped recording paths', () => {
+  it('names the cause rather than throwing, so the message still gets sent', () => {
+    // filePath is only written when the CTRF reporter's `minimal` option is
+    // false. It defaults to false, but that default lives in another repo.
+    const summary = summarizeDir(
+      { 1: { results: { summary: { start: 0, stop: 1000 }, tests: [{ name: 'a test', status: 'failed' }] } } },
+      { expectedShards: [1] }
+    )
+
+    assert.equal(summary.failures.standard.length, 1)
+    assert.match(summary.failures.standard[0].specPath, /minimal/)
+    assert.match(renderSlackMessage(summary, nightlyContext), /minimal/)
+  })
+})
+
 describe('isRegressionSpec', () => {
   it('classifies by the opt-in suite directory, matching playwright.config.ts testIgnore', () => {
     assert.equal(isRegressionSpec(REGRESSION_SPEC), true)
