@@ -65,6 +65,7 @@ jobs:
             --namespace ${namespace} \
             --set platform.tag="${{ inputs.core-image-tag }}" \
             --set validation.enabled=true \
+            --show-only templates/service-accounts.yaml \
             --show-only templates/validate-${{ inputs.stage }}-job.yaml \
             oci://ghcr.io/opencrvs/opencrvs-services \
             | kubectl apply -n ${namespace} --wait=true -f -
