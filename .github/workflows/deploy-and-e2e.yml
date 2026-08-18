@@ -13,6 +13,11 @@ on:
         description: Core branch to run the e2e suite from
         required: false
         default: "develop"
+      regression-e2e:
+        description: Run the qa-testrail-testcases regression suite as well as the standard one
+        required: false
+        default: true
+        type: boolean
 
 concurrency:
   group: "e2e"
@@ -22,6 +27,68 @@ env:
   DOMAIN: ${{ vars.DOMAIN }}
 
 jobs:
+  # Everything the run needs to agree on, resolved once.
+  plan:
+    name: Plan the run
+    runs-on: ubuntu-24.04
+    outputs:
+      shards: ${{ steps.shards.outputs.shards }}
+      shard-count: ${{ steps.shards.outputs.count }}
+      regression-e2e: ${{ steps.regression.outputs.enabled }}
+      core-branch: ${{ steps.target.outputs.branch }}
+      core-image-tag: ${{ steps.target.outputs.image-tag }}
+    steps:
+      # A `schedule` event carries neither a client payload nor inputs, and a
+      # workflow_dispatch input default does not apply to other events — so
+      # without a fallback here the nightly would check out opencrvs-core's
+      # default branch (master, not develop) and deploy an empty image tag.
+      #
+      # `develop` works as an image tag because core writes that moving branch
+      # tag alongside the 7-char SHA on every develop build, which is what lets
+      # the nightly live in this repo with no cross-repo dispatch.
+      - name: Resolve the core ref under test
+        id: target
+        env:
+          BRANCH: ${{ github.event.client_payload.core-branch || inputs.core-branch }}
+          IMAGE_TAG: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }}
+        run: |
+          echo "branch=${BRANCH:-develop}" >> "$GITHUB_OUTPUT"
+          echo "image-tag=${IMAGE_TAG:-develop}" >> "$GITHUB_OUTPUT"
+
+      # The only place the shard layout is written down. The test matrix,
+      # Playwright's --shard=<n>/<count> argument and the notify job's "did every
+      # shard report?" check all derive from it, so the count cannot be raised
+      # here and left behind there.
+      #
+      # Hand-ordered slowest-first: the run is bound by max-parallel: 15, not by
+      # the shard count, so the long shards have to start in the first wave.
+      - name: Resolve the shard layout
+        id: shards
+        run: |
+          shards='[20, 3, 2, 1, 15, 5, 4, 16, 19, 7, 17, 8, 9, 12, 14, 18, 6, 10, 11, 13]'
+          count=$(jq 'length' <<<"$shards")
+          if [ "$(jq -c 'sort' <<<"$shards")" != "$(jq -cn --argjson n "$count" '[range(1; $n + 1)]')" ]; then
+            echo "::error::The shard list must be a permutation of 1..$count — every shard index has to appear exactly once, or Playwright will run some tests twice and others never."
+            exit 1
+          fi
+          echo "shards=$(jq -c . <<<"$shards")" >> "$GITHUB_OUTPUT"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+      # The regression suite runs by default and only a human can turn it off:
+      # the nightly schedule and repository_dispatch carry no inputs at all, so
+      # `inputs.regression-e2e` is null for them. Resolved here rather than
+      # inline because both the test job and the notify job need the same answer.
+      - name: Resolve whether the regression suite runs
+        id: regression
+        env:
+          OPTED_OUT: ${{ github.event_name == 'workflow_dispatch' && inputs.regression-e2e == false }}
+        run: |
+          if [ "$OPTED_OUT" = "true" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
   debug:
     name: Debug output
     runs-on: ubuntu-24.04
@@ -37,6 +104,7 @@ jobs:
 
   cache-node-js:
     name: Cache Node.js dependencies
+    needs: plan
     runs-on: ubuntu-24.04
     steps:
       # testland resolves @opencrvs/toolkit as a workspace package, so toolkit
@@ -48,7 +116,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           repository: "opencrvs/opencrvs-core"
-          ref: ${{ github.event.client_payload.core-branch || inputs.core-branch }}
+          ref: ${{ needs.plan.outputs.core-branch }}
           sparse-checkout: |
             development-environment
             patches
@@ -115,53 +183,46 @@ jobs:
     uses: ./.github/workflows/deploy-opencrvs.yml
     if: "!cancelled()"
     needs:
+      - plan
       - reset-data
       - data-seed
     with:
-      core-image-tag: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }}
+      core-image-tag: ${{ needs.plan.outputs.core-image-tag }}
       environment: "e2e"
       data-seed-enabled: true
+      # reset-data ran upstream, so the deploy summary QA reads during triage
+      # must say the environment was wiped.
+      reset: true
     secrets: inherit
 
   test:
-    needs: [debug, deploy, cache-node-js]
+    needs: [debug, deploy, cache-node-js, plan]
     if: "!cancelled() && needs.deploy.result == 'success'"
     runs-on: ubuntu-24.04
     environment: "e2e"
+    # Roughly twice the worst healthy shard: across 800 successful shard jobs the
+    # median was 9.5 min, p99 18.3 and the maximum ever 19.4 — against runaways
+    # of 108 and 116 min, so there is no ambiguous middle ground. The headroom
+    # over 19.4 is for the regression specs, which Playwright shards by test
+    # count while each one carries a whole declaration flow in a single test().
+    #
+    # A hard kill writes no CTRF report at all, so this bounds the damage; what
+    # stops a partial run reading as green is the notify job's shard-set check.
+    timeout-minutes: 40
     strategy:
       max-parallel: 15
       fail-fast: false
       matrix:
-        # Since we are not yet in a place where we can reliably run all tests in parallel, we will run the slowest ones first
-        shard:
-          [
-            20,
-            3,
-            2,
-            1,
-            15,
-            5,
-            4,
-            16,
-            19,
-            7,
-            17,
-            8,
-            9,
-            12,
-            14,
-            18,
-            6,
-            10,
-            11,
-            13,
-          ]
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     name: shard-${{ matrix.shard }}
+    env:
+      # Opt-in suite gate, read by core's packages/testland/playwright.config.ts.
+      REGRESSION_E2E: ${{ needs.plan.outputs.regression-e2e }}
     steps:
       - uses: actions/checkout@v6
         with:
           repository: "opencrvs/opencrvs-core"
-          ref: ${{ github.event.client_payload.core-branch || inputs.core-branch }}
+          ref: ${{ needs.plan.outputs.core-branch }}
           sparse-checkout: |
             development-environment
             patches
@@ -210,7 +271,7 @@ jobs:
         run: |
           export NODE_EXTRA_CA_CERTS=/tmp/letsencrypt-stg-root-x1.pem
           curl -s -o $NODE_EXTRA_CA_CERTS https://letsencrypt.org/certs/staging/letsencrypt-stg-root-x1.pem
-          npx playwright test --shard=${{ matrix.shard }}/20
+          npx playwright test --shard=${{ matrix.shard }}/${{ needs.plan.outputs.shard-count }}
       - id: ctrf_check
         if: "!cancelled()"
         working-directory: packages/testland
@@ -233,33 +294,96 @@ jobs:
           name: playwright-report-e2e-shard-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: packages/testland/playwright-report/
           retention-days: 30
+      # A separate artifact from the HTML report above, deliberately: the notify
+      # job downloads every shard's CTRF to render one Slack message, and flake
+      # measurement reads them in bulk afterwards. Bundling ~1 KB of JSON into a
+      # 300-660 MB HTML artifact would mean fetching gigabytes to count retries.
+      #
+      # The shard index is in the artifact name because that is what lets the
+      # notify job say *which* shard reported nothing.
+      - name: Upload CTRF report artifact
+        uses: actions/upload-artifact@v7
+        if: "!cancelled()"
+        with:
+          name: ctrf-e2e-shard-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: packages/testland/ctrf/
+          # A shard killed mid-suite writes no report. That must leave the
+          # artifact absent for the notify job to notice, not fail this job.
+          if-no-files-found: warn
+          retention-days: 90
 
-  # Cancelled runs (superseded by a newer trigger) notify nobody: failure()
-  # and success() are both false for them.
+  # One message per run, rendered from the merged per-shard CTRF reports rather
+  # than from job conclusions. Success is reported as well as failure: at one
+  # message a day, the *absence* of a message is what reveals that the schedule
+  # has died (GitHub disables `schedule:` after 60 days of repository inactivity).
   notify-slack:
-    name: Notify Slack on Failure
-    runs-on: ubuntu-latest
-    needs: [cache-node-js, reset-data, data-seed, deploy, test]
-    if: failure()
+    name: Notify Slack
+    runs-on: ubuntu-24.04
+    needs: [plan, debug, cache-node-js, reset-data, data-seed, deploy, test]
+    if: "!cancelled()"
     steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/nightly-notify
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Download every shard's CTRF report
+        uses: actions/download-artifact@v8
+        # A run that failed before the fan-out uploaded nothing to match, which
+        # is a state the renderer reports rather than an error.
+        continue-on-error: true
+        with:
+          pattern: ctrf-e2e-shard-*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ctrf-reports
+
+      - name: Render the Slack message
+        id: render
+        run: node scripts/nightly-notify/main.mjs ctrf-reports
+        env:
+          # The shard matrix, so a shard that reported nothing is named. Keyed on
+          # the index rather than counted, or the check silently stops protecting
+          # anything the moment the shard count changes.
+          EXPECTED_SHARDS: ${{ needs.plan.outputs.shards }}
+          NEEDS: ${{ toJSON(needs) }}
+          TEST_JOB_RESULT: ${{ needs.test.result }}
+          EVENT_NAME: ${{ github.event_name }}
+          ACTOR: ${{ github.event.client_payload.actor || github.actor }}
+          CORE_BRANCH: ${{ needs.plan.outputs.core-branch }}
+          CORE_IMAGE_TAG: ${{ needs.plan.outputs.core-image-tag }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REGRESSION_ENABLED: ${{ needs.plan.outputs.regression-e2e }}
+
       - name: Send Slack notification
         uses: slackapi/slack-github-action@v1.26.0
         with:
           channel-id: "C08FCLKER8X"
-          slack-message: "❌ E2E pipeline triggered by ${{ github.event.client_payload.actor || github.actor }} failed. Check the logs at https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}."
+          slack-message: ${{ steps.render.outputs.message }}
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
-  notify-slack-success:
-    name: Notify Slack on success
-    runs-on: ubuntu-latest
-    needs: [cache-node-js, reset-data, data-seed, deploy, test]
-    if: success()
+      # So the run's own status can never disagree with the message just posted —
+      # a missing shard report makes this job red even when every job was green.
+      - name: Fail the run when the report is not green
+        if: steps.render.outputs.outcome != 'success'
+        run: exit 1
+
+  # Cancellation is rare enough after this change to be worth reporting: the only
+  # thing that races the nightly is a manual dispatch, and `concurrency: e2e`
+  # cancels rather than let two runs hit the single e2e environment at once.
+  notify-slack-cancelled:
+    name: Notify Slack on cancellation
+    runs-on: ubuntu-24.04
+    needs: [plan, debug, cache-node-js, reset-data, data-seed, deploy, test]
+    if: cancelled()
     steps:
       - name: Send Slack notification
         uses: slackapi/slack-github-action@v1.26.0
         with:
           channel-id: "C08FCLKER8X"
-          slack-message: "✅ E2E pipeline finished successfully, triggered by ${{ github.event.client_payload.actor || github.actor }}. Check the logs at https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}."
+          slack-message: "🚫 E2E on `${{ needs.plan.outputs.core-branch }}` was cancelled — superseded by a newer run, or stopped by hand. Nothing ran to completion and the e2e environment is in whatever state it was left in. <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

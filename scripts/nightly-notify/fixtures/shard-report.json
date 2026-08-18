@@ -1,0 +1,87 @@
+{
+  "results": {
+    "tool": {
+      "name": "playwright"
+    },
+    "summary": {
+      "tests": 4,
+      "passed": 2,
+      "failed": 1,
+      "pending": 0,
+      "skipped": 1,
+      "other": 0,
+      "start": 1755043200000,
+      "stop": 1755043769000,
+      "suites": 3
+    },
+    "tests": [
+      {
+        "name": "Register a birth declaration",
+        "status": "passed",
+        "duration": 41234,
+        "start": 1755043201,
+        "stop": 1755043242,
+        "rawStatus": "passed",
+        "tags": [],
+        "type": "e2e",
+        "filePath": "/home/runner/work/opencrvs-testland-infrastructure/opencrvs-testland-infrastructure/packages/testland/e2e/testcases/birth/1-birth-event-declaration.spec.ts",
+        "retries": 0,
+        "flaky": false,
+        "steps": [
+          {
+            "name": "Login as a Field Agent",
+            "status": "passed"
+          }
+        ],
+        "suite": "birth/1-birth-event-declaration.spec.ts > 1. Birth event declaration"
+      },
+      {
+        "name": "Validate the review page",
+        "status": "passed",
+        "duration": 88012,
+        "start": 1755043243,
+        "stop": 1755043331,
+        "rawStatus": "passed",
+        "tags": [],
+        "type": "e2e",
+        "filePath": "/home/runner/work/opencrvs-testland-infrastructure/opencrvs-testland-infrastructure/packages/testland/e2e/testcases/death/8-validate-declaration-review-page.spec.ts",
+        "retries": 1,
+        "flaky": true,
+        "steps": [],
+        "suite": "death/8-validate-declaration-review-page.spec.ts > 8. Validate declaration review page"
+      },
+      {
+        "name": "Declare a community leader residential birth",
+        "status": "failed",
+        "duration": 90000,
+        "start": 1755043332,
+        "stop": 1755043422,
+        "message": "Test timeout of 90000ms exceeded.",
+        "trace": "TimeoutError: locator.click: Timeout 90000ms exceeded.",
+        "rawStatus": "timedOut",
+        "tags": [],
+        "type": "e2e",
+        "filePath": "/home/runner/work/opencrvs-testland-infrastructure/opencrvs-testland-infrastructure/packages/testland/e2e/testcases/qa-testrail-testcases/Regression-Test-Data/Birth/1.declare-community-leader-residential-birth.spec.ts",
+        "retries": 2,
+        "flaky": false,
+        "steps": [],
+        "suite": "qa-testrail-testcases/Regression-Test-Data/Birth/1.declare-community-leader-residential-birth.spec.ts > Declare a community leader residential birth"
+      },
+      {
+        "name": "Correct a registered death record",
+        "status": "skipped",
+        "duration": 0,
+        "start": 1755043423,
+        "stop": 1755043423,
+        "rawStatus": "skipped",
+        "tags": [],
+        "type": "e2e",
+        "filePath": "/home/runner/work/opencrvs-testland-infrastructure/opencrvs-testland-infrastructure/packages/testland/e2e/testcases/death/9-correct-record.spec.ts",
+        "retries": 0,
+        "flaky": false,
+        "steps": [],
+        "suite": "death/9-correct-record.spec.ts > 9. Correct record"
+      }
+    ]
+  }
+}

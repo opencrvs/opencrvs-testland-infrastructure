@@ -17,6 +17,7 @@
     "environment:swarm-to-k8s": "opencrvs environment swarm-to-k8s",
     "environment:users": "opencrvs environment users",
     "environment:update-workflows": "opencrvs environment update-workflows",
+    "test": "node --test \"scripts/nightly-notify/*.test.mjs\"",
     "prepare": "husky"
   },
   "devDependencies": {
