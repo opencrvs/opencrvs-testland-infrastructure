@@ -34,7 +34,11 @@ on:
       environment:
         description: "Target environment"
         required: true
-        default: "development"
+        # `development` was the default and is not one of the options below, nor
+        # is there an environments/development/ to deploy. Set to e2e because that
+        # is what this dispatch is actually used for: refreshing the nightly
+        # environment on demand.
+        default: "e2e"
         type: choice
         options:
           - e2e
