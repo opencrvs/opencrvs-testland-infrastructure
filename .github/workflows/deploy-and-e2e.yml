@@ -74,16 +74,23 @@ jobs:
           echo "shards=$(jq -c . <<<"$shards")" >> "$GITHUB_OUTPUT"
           echo "count=$count" >> "$GITHUB_OUTPUT"
 
-      # The regression suite runs by default and only a human can turn it off:
-      # the nightly schedule and repository_dispatch carry no inputs at all, so
-      # `inputs.regression-e2e` is null for them. Resolved here rather than
-      # inline because both the test job and the notify job need the same answer.
+      # Resolved here rather than inline because the test job and the notify job
+      # need the same answer, and drifting copies would report a suite that did
+      # not run.
       - name: Resolve whether the regression suite runs
         id: regression
         env:
-          OPTED_OUT: ${{ github.event_name == 'workflow_dispatch' && inputs.regression-e2e == false }}
+          # Empty for every event except workflow_dispatch — the schedule and
+          # repository_dispatch carry no inputs at all, and both run both suites.
+          REQUESTED: ${{ inputs.regression-e2e }}
         run: |
-          if [ "$OPTED_OUT" = "true" ]; then
+          # Compared as a string, and opt-out has to be explicit. A boolean
+          # dispatch input can reach a workflow as either a boolean or the string
+          # "false" depending on how the run was started, and `== false` in a
+          # GitHub expression coerces a string to NaN — which would compare
+          # false and silently leave the regression suite on for someone who
+          # asked for it off.
+          if [ "$REQUESTED" = "false" ]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=true" >> "$GITHUB_OUTPUT"
@@ -358,10 +365,15 @@ jobs:
           REGRESSION_ENABLED: ${{ needs.plan.outputs.regression-e2e }}
 
       - name: Send Slack notification
+        # Unconditional, with a fallback, because the whole scheme rests on there
+        # being exactly one message a day: silence is what tells QA the schedule
+        # itself has died, so "the renderer crashed" has to arrive as a message
+        # rather than borrow that meaning.
+        if: always()
         uses: slackapi/slack-github-action@v1.26.0
         with:
           channel-id: "C08FCLKER8X"
-          slack-message: ${{ steps.render.outputs.message }}
+          slack-message: ${{ steps.render.outputs.message || format('⚠️ E2E on `{0}` could not render its report. <{1}/{2}/actions/runs/{3}|View run>', needs.plan.outputs.core-branch, github.server_url, github.repository, github.run_id) }}
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
