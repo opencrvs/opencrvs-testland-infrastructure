@@ -155,3 +155,77 @@ It ensures that every change to the charts directory or to the workflow file its
 - Make sure all charts follow proper Helm conventions and versioning.
 - The workflow expects the runner to have Helm installed (GitHub’s Ubuntu runners do by default).
 - Registry authentication uses the username `adskyiproger`; update as needed for your organization.
+
+---
+
+## Nightly E2E Workflow
+
+### Overview
+
+`deploy-and-e2e.yml` runs the OpenCRVS e2e suite against **`e2e.opencrvs.dev`** — the *nightly environment*, the one persistent deployment shared by QA and CI. One scheduled run per day at **00:00 UTC** wipes the environment, re-seeds it, deploys the current `develop` image and runs both test suites: the standard suite and the `qa-testrail-testcases` regression suite.
+
+It replaces a redeploy-and-retest on every push to `develop`. Every PR already runs the full suite on its own ephemeral stack minutes before merge, so those runs mostly re-confirmed what had just been confirmed, ~10 times a day, while wiping the environment under QA 89% of the time inside the working day.
+
+The accepted cost is stated plainly: **merge-order breakage — two PRs green apart, red together — now surfaces within 24 hours rather than within one.**
+
+---
+
+### Triggers
+
+- **`schedule`** — 00:00 UTC daily. The only automatic trigger.
+- **`workflow_dispatch`** — a manual run, which may opt out of the regression suite to reproduce a standard-suite failure faster.
+- **`repository_dispatch`** (`run_e2e`) — retained for external callers.
+
+The cron runs **whether or not `develop` moved**. A re-run of an identical image tag is a pure flake measurement, and — because the run reports exactly one Slack message a day — a skipped day would make a missing message ambiguous between "nothing merged" and "GitHub auto-disabled the schedule after 60 days of repository inactivity".
+
+---
+
+### Reporting
+
+One Slack message per run, to the existing e2e results channel (`C08FCLKER8X`) where develop e2e results already land, rendered from the 20 per-shard CTRF reports merged in the `notify-slack` job:
+
+- **Success** carries the passed count, wall-clock, how many regression specs ran, and how many tests were rescued on retry. It is posted deliberately — at one message a day, the **absence** of a message is the signal that the schedule has died.
+- **Failure** names every failing spec by full repo-relative path, split into **regression-suite** and **standard-suite** groups. The split routes the failure before anyone opens the run: a `qa-testrail-testcases/` failure is QA's call between a test-case update and a product bug, anything else is a dev regression.
+- **A shard that reported nothing** is a line of its own, distinct from test failures. This — not the 40-minute job timeout — is what stops a partial run reading as green: a shard killed mid-suite writes no CTRF at all, so it merges one report fewer and its failures would otherwise vanish.
+- **Cancellation** is reported too. It is rare now that nothing races the cron, which is what makes it worth saying.
+
+The renderer is `scripts/nightly-notify/`, kept out of the YAML because its most important paths are ones a healthy run never produces. It runs against fixtures with no install step:
+
+```bash
+yarn test                                    # the failure, missing-shard and flake paths
+node scripts/nightly-notify/main.mjs ./some-downloaded-artifacts   # render a real run
+```
+
+---
+
+### Who owns a red nightly
+
+**The QA team owns it**, and decides whether a failure is a test-case update or a product bug. A release manager reading the channel should be able to tell from the daily message whether `develop` is green before cutting a release, and should be able to assume a red nightly has an owner.
+
+**Flake policy is fix, not quarantine.** A red nightly is fixed or filed as a bug. `test.skip` is not a sanctioned response to one — the repository already carries ~17 permanently skipped tests with empty bodies, which is the outcome this rule exists to stop growing. Retries rescue something on 93% of green runs, so the ranked flake backlog built from the uploaded CTRF reports is the useful artifact, not a per-run flake alarm.
+
+---
+
+### Refreshing the environment on demand
+
+The nightly leaves the environment in its **post-run state** — no teardown, no re-seed. That is deliberate: triage needs the failing state intact, and a post-run re-seed would destroy the evidence before anyone saw it.
+
+So the environment can be up to ~24 hours stale. To pull it to current `develop`, dispatch **"03. Deploy OpenCRVS"** with `environment: e2e`. This does not reset data.
+
+That dispatch is guarded twice, because concurrency alone is not enough:
+
+- `concurrency: deploy-<environment>` serialises deploys against deploys, and **queues** rather than cancels — a deploy killed mid-flight leaves a half-applied Helm release.
+- A **pre-flight refusal** covers the rest: during the ~19-minute test fan-out the nightly holds no job in that group at all, so the `guard-e2e-suite` job fails fast and names the run in flight rather than letting a refresh swap the deployment out from under a live suite. Wait for it, or cancel it, then dispatch again.
+
+---
+
+### Runtime bounds
+
+- `timeout-minutes: 40` on each shard job. Across 800 successful shard jobs the median was 9.5 min, p99 18.3 and the maximum ever 19.4 — against two observed runaways of 108 and 116 min. The headroom over 19.4 is not generic: Playwright shards by *test count*, and each regression spec is one `test()` carrying a whole declaration flow, so an unlucky shard taking two of them lands near 25 min.
+- The shard layout lives in one place, the `plan` job. The matrix, the `--shard=<n>/<count>` argument and the notify job's shard-set check all derive from it.
+
+---
+
+### Note on the numbers
+
+Every measurement above was taken **before the regression suite had ever run in CI**. `retries` is the exposed one: no rescue in a month needed a third attempt, but that is a statement about standard-suite specs, and a regression spec is long and single-test, so a flake near the end re-runs the whole flow. **Revisit `retries` after two weeks of nightly data**, treating a regression spec rescued on attempt 3 as the signal rather than as flake to absorb. The per-shard CTRF artifacts are what make that visible.
