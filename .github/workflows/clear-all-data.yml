@@ -119,6 +119,7 @@ jobs:
               --set data_cleanup.enabled=true \
               --set data_seed.enabled=true \
               --namespace ${namespace} \
+              --show-only templates/service-accounts.yaml \
               --show-only templates/${{ matrix.job-name }}-job.yaml \
               oci://ghcr.io/opencrvs/opencrvs-services \
               | kubectl apply -n ${namespace} --wait=true -f -
