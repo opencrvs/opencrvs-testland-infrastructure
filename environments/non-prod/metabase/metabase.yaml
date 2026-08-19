@@ -1,0 +1,95 @@
+# Metabase deployment values for the generic `opencrvs-addon` chart.
+#
+# Install into a dedicated namespace with:
+#   helm install metabase charts/opencrvs-addon -n metabase --create-namespace -f metabase.yaml
+#
+# --- Prerequisites (create these in the target namespace before installing) ---
+#
+# 1. Secret with the external Postgres credentials Metabase uses as its own
+#    *application* database (stores dashboards/questions/users/settings -
+#    separate from whatever data sources you add inside Metabase later):
+#      kubectl create secret generic metabase-db-credentials \
+#        --namespace metabase \
+#        --from-literal=POSTGRES_USER=REPLACE_ME \
+#        --from-literal=POSTGRES_PASSWORD=REPLACE_ME
+#
+# 2. Secret with a random key Metabase uses to encrypt stored DB credentials
+#    at rest (recommended, see Metabase's MB_ENCRYPTION_SECRET_KEY docs):
+#      kubectl create secret generic metabase-encryption-key \
+#        --namespace metabase \
+#        --from-literal=MB_ENCRYPTION_SECRET_KEY=$(openssl rand -base64 32)
+#
+# --- Admin user ---
+# Vanilla Metabase has no env var to bootstrap the first admin account. Once
+# the pod is Ready, visit https://<hostname>/setup and complete the setup
+# wizard - that creates your first admin login.
+
+app_name: metabase
+hostname: metabase.opencrvs.dev
+
+service:
+  enabled: true
+  port: 80
+  container_port: 3000
+
+allowed_hosts: '0.0.0.0'
+
+ingress:
+  enabled: true
+  ssl_enabled: true
+  tls_resolver: letsencrypt
+
+imagePullSecrets: []
+
+image:
+  name: metabase/metabase
+  tag: v0.56.4
+
+# Sized per OpenCRVS's own Metabase deployment (charts/opencrvs-services
+# dashboards.resources) - Metabase's JVM needs ~2Gi to start reliably.
+resources:
+  requests:
+    memory: '2Gi'
+    cpu: '250m'
+  limits:
+    memory: '2Gi'
+    cpu: '2'
+
+
+# startupProbe gives Metabase's slow JVM boot up to 5 minutes (30 x 10s)
+# before liveness/readiness kick in with their own tighter thresholds.
+probes:
+  enabled: true
+  liveness:
+    path: /api/health
+    periodSeconds: 10
+    timeoutSeconds: 5
+  readiness:
+    path: /api/health
+    periodSeconds: 10
+    timeoutSeconds: 5
+  startup:
+    path: /api/health
+    periodSeconds: 10
+    timeoutSeconds: 5
+
+# Metabase's own application data (dashboards/questions/users/settings) lives
+# in the external Postgres configured below, so no local/embedded storage
+# (and therefore no PVC/hostPath) is needed.
+persistence:
+  enabled: false
+
+env:
+  MB_DB_TYPE: postgres
+  MB_DB_HOST: postgres.metabase.svc.cluster.local
+  MB_DB_PORT: '5432'
+  MB_DB_DBNAME: postgres
+  # Need e.g. `sslmode=require`? Drop the MB_DB_* vars above and use a full
+  # JDBC URI instead:
+  # MB_DB_CONNECTION_URI: 'postgres://REPLACE_ME.postgres.example.com:5432/metabase?sslmode=require&user=...&password=...'
+secrets:
+  metabase-db-credentials:
+    - 'POSTGRES_USER:MB_DB_USER'
+    - 'POSTGRES_PASSWORD:MB_DB_PASS'
+  metabase-encryption-key:
+    - 'MB_ENCRYPTION_SECRET_KEY'

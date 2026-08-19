@@ -1,0 +1,65 @@
+# Postgres deployment values for the generic `opencrvs-addon` chart - the
+# external application database Metabase (see ../metabase.yaml) connects to.
+#
+# Install into the same dedicated namespace as Metabase:
+#   helm install postgres charts/opencrvs-addon -n metabase --create-namespace -f postgres.yaml
+#
+# Prerequisite: create the credentials secret Postgres bootstraps with, which
+# is also the secret metabase.yaml expects to authenticate with:
+#   kubectl create secret generic metabase-db-credentials \
+#     --namespace metabase \
+#     --from-literal=POSTGRES_USER=REPLACE_ME \
+#     --from-literal=POSTGRES_PASSWORD=REPLACE_ME
+#
+# Once deployed, Metabase reaches this over the in-cluster service DNS name
+# "postgres" (or "postgres.metabase.svc.cluster.local" from another
+# namespace) - point metabase.yaml's MB_DB_HOST at that.
+
+app_name: postgres
+
+service:
+  enabled: true
+  port: 5432
+  container_port: 5432
+
+# Postgres speaks the raw wire protocol, not HTTP - no ingress, reachable
+# only in-cluster via the Service above. `hostname` is left at its chart
+# default since nothing here uses it.
+ingress:
+  enabled: false
+
+imagePullSecrets: []
+
+image:
+  name: postgres
+  tag: '16-alpine'
+
+resources:
+  requests:
+    memory: '512Mi'
+    cpu: '250m'
+  limits:
+    memory: '1Gi'
+    cpu: '1'
+
+# Postgres has no HTTP endpoint to probe, and probes-helper only supports
+# httpGet, so leave probes disabled.
+probes:
+  enabled: false
+
+persistence:
+  enabled: true
+  mountPath: /var/lib/postgresql/data
+  storage_type: host_path
+  host_data_path: /data/metabase/data
+
+env:
+  POSTGRES_DB: metabase
+  # Postgres refuses to initdb into a non-empty mountPath (some volume
+  # types pre-populate it, e.g. with lost+found), so keep data in a
+  # subdirectory of the mount instead of at its root.
+  PGDATA: /var/lib/postgresql/data/pgdata
+secrets:
+  metabase-db-credentials:
+    - POSTGRES_USER
+    - POSTGRES_PASSWORD
