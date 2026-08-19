@@ -46,3 +46,8 @@ postgres_on_deploy:
       - REFERENCE_DATA_POSTGRES_PASSWORD
       - REFERENCE_DATA_EDITOR_USER
       - REFERENCE_DATA_EDITOR_PASSWORD
+
+events:
+  env:
+    TWO_FA_ENABLED: false
+    DEFAULT_USER_PASSWORD: "test"
