@@ -55,6 +55,7 @@ backup:
 restore:
   enabled: true
   schedule: "0 0 * * *"
+  host: 10.0.1.2
   backup_server_secret: backup-server-ssh-credentials
   backup_server_dir: /home/backup/migration-production
   backup_encryption_secret: restore-encryption-secret
