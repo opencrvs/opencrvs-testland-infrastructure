@@ -25,7 +25,7 @@
 # wizard - that creates your first admin login.
 
 app_name: metabase
-hostname: metabase.opencrvs.dev
+hostname: metabase.opencrvs.org
 
 service:
   enabled: true
