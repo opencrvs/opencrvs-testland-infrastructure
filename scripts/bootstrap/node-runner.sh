@@ -102,7 +102,16 @@ if [[ ! -f "runner.tar.gz" ]]; then
   fi
   # FIXME:Fails with permission denied if run as non-root without sudo, so we use sudo for the download step
   echo "[+] Download URL: $RUNNER_LATEST_URL into folder $(pwd)"
-  if ! sudo -u $RUNAS_USER curl -fL "$RUNNER_LATEST_URL" -o runner.tar.gz; then
+  DOWNLOAD_OK=false
+  for attempt in 1 2 3; do
+    if sudo -u $RUNAS_USER curl -fL "$RUNNER_LATEST_URL" -o runner.tar.gz; then
+      DOWNLOAD_OK=true
+      break
+    fi
+    echo "⚠️  Download attempt $attempt failed, retrying..."
+    [ "$attempt" -lt 3 ] && sleep 3
+  done
+  if [ "$DOWNLOAD_OK" != "true" ]; then
     echo "❌ Failed to download runner archive."
     exit 1
   fi

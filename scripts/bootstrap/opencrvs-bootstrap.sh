@@ -72,22 +72,27 @@ check_ubuntu_version() {
 curl_check_url() {
     local url="$1"
     local http_code
+    local attempt
 
-    http_code="$(curl \
-        --silent \
-        --location \
-        --head \
-        --max-time 10 \
-        --output /dev/null \
-        --write-out "%{http_code}" \
-        "$url" || true)"
+    for attempt in 1 2 3; do
+        http_code="$(curl \
+            --silent \
+            --location \
+            --head \
+            --max-time 10 \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            "$url" || true)"
 
-    # 000 means curl could not connect / DNS failed / TLS failed / timed out.
-    if [ "$http_code" = "000" ]; then
-        return 1
-    fi
+        # 000 means curl could not connect / DNS failed / TLS failed / timed out.
+        if [ "$http_code" != "000" ]; then
+            return 0
+        fi
 
-    return 0
+        [ "$attempt" -lt 3 ] && sleep 3
+    done
+
+    return 1
 }
 
 check_internet() {

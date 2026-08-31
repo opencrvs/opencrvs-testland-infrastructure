@@ -101,6 +101,8 @@ jobs:
           sed -i \
             -e "s/^\(\s*DEPENDENCIES_CHART_VERSION:\s*\).*/\1\"v$VERSION\"/" \
             .github/workflows/deploy-dependencies.yml
+          # Bump package.json without creating a git tag.
+          yarn version --new-version ${{ inputs.version }} --no-git-tag-version
           git add .
           git commit -m "chore: update version to ${{ inputs.version }}"
 
