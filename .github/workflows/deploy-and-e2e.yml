@@ -1,6 +1,13 @@
 name: Deploy & run E2E
-run-name: "E2E by ${{ github.event.client_payload.actor || github.actor }} (core: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }})"
+run-name: "${{ github.event_name == 'schedule' && 'Nightly E2E (core: develop)' || format('E2E by {0} (core: {1})', github.event.client_payload.actor || github.actor, github.event.client_payload.core-image-tag || inputs.core-image-tag) }}"
 on:
+  # 00:00 UTC, so the one wipe of the shared nightly environment lands outside
+  # QA's working day. Deliberately unconditional on whether develop moved: an
+  # identical-tag re-run is a pure flake measurement, and at one message a day a
+  # silent day would be ambiguous between "nothing merged" and "GitHub
+  # auto-disabled this schedule".
+  schedule:
+    - cron: "0 0 * * *"
   repository_dispatch:
     types: [run_e2e]
   workflow_dispatch:
