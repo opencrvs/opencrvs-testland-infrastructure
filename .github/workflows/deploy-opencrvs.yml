@@ -11,6 +11,15 @@ on:
         type: boolean
       environment:
         type: string
+      # Reported in the deploy summary, not acted on: the wipe happens in the
+      # caller (deploy-and-e2e.yml runs clear-all-data before this workflow).
+      # Undeclared until now, which made it always falsy — so every nightly
+      # summary read "Reset environment: No" directly after wiping the database.
+      # Deliberately not offered on workflow_dispatch: a bare dispatch resets
+      # nothing, and a checkbox here would read as if it might.
+      reset:
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       core-image-tag:
@@ -25,7 +34,11 @@ on:
       environment:
         description: "Target environment"
         required: true
-        default: "development"
+        # `development` was the default and is not one of the options below, nor
+        # is there an environments/development/ to deploy. Set to e2e because that
+        # is what this dispatch is actually used for: refreshing the nightly
+        # environment on demand.
+        default: "e2e"
         type: choice
         options:
           - e2e
@@ -34,11 +47,81 @@ on:
           - qa
           - qa-hotfix
 
+# Serialised per environment, so two deploys cannot interleave over one Helm
+# release. A distinct group name rather than the caller's `e2e` group: sharing it
+# would put this called workflow in the same group as its own parent run and let
+# it cancel the run that started it. Queue rather than cancel, because a deploy
+# killed mid-flight leaves a half-applied Helm release — worse than either
+# outcome being prevented. Keyed on the input, so all five environments are
+# covered without naming them.
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
 env:
   # Assuming chart version matches core image tag
   OPENCRVS_CHART_VERSION: "v2.1.0"
 jobs:
+  # The nightly environment is refreshed on demand by QA dispatching this workflow,
+  # which would otherwise swap the deployment out from under a nightly suite
+  # already running. The concurrency group above serialises deploys against
+  # deploys, but during the ~19-minute test fan-out the nightly holds no job in
+  # that group at all — so the group alone does not close this hole.
+  guard-e2e-suite:
+    name: Refuse to deploy under a running E2E suite
+    runs-on: ubuntu-26.04
+    # Listing workflow runs is all this job does, and an explicit grant means it
+    # does not depend on whatever the repository's default token scope happens
+    # to be — a guard that errors is a guard that blocks every deploy.
+    permissions:
+      actions: read
+    steps:
+      - name: Look for an in-progress "Deploy & run E2E" run
+        # A called workflow sees the *caller's* event context, so
+        # `workflow_dispatch` here means a human dispatched this workflow
+        # directly; the nightly's own call arrives as schedule or
+        # repository_dispatch and must not be refused. Kept as a step condition
+        # rather than a job-level `if` so that skipping the check does not skip
+        # every job that depends on it.
+        if: github.event_name == 'workflow_dispatch' && inputs.environment == 'e2e'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const running = []
+
+            for (const status of ['in_progress', 'queued']) {
+              const { data } = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'deploy-and-e2e.yml',
+                status
+              })
+
+              // A manually dispatched "Deploy & run E2E" calls this workflow as
+              // part of the same run, so without excluding the current run id it
+              // would find itself and refuse to deploy.
+              running.push(
+                ...data.workflow_runs.filter((run) => run.id !== context.runId)
+              )
+            }
+
+            if (running.length === 0) {
+              core.info('No E2E suite in flight — safe to deploy.')
+              return
+            }
+
+            const inFlight = running
+              .map((run) => `  - ${run.html_url} (${run.status})`)
+              .join('\n')
+
+            core.setFailed(
+              'Refusing to deploy to e2e: "Deploy & run E2E" is still running, and ' +
+                'deploying now would swap the release out from under a live test ' +
+                `suite.\n\n${inFlight}\n\nWait for it to finish, or cancel it, then dispatch this again.`
+            )
+
   approve:
+    needs: guard-e2e-suite
     environment: ${{ inputs.environment }}
     runs-on: ubuntu-26.04
     timeout-minutes: 60
@@ -67,6 +150,7 @@ jobs:
       environment: ${{ inputs.environment }}
     secrets: inherit
   validate-predeploy:
+    needs: guard-e2e-suite
     uses: ./.github/workflows/validate-opencrvs.yml
     with:
       environment: ${{ inputs.environment }}
@@ -103,11 +187,13 @@ jobs:
         env:
           PUBLIC_DOMAIN: ${{ vars.DOMAIN }}
         run: |
-          RESET="${{ inputs.reset }}"
-          if [ "$RESET" = "true" ]; then
-            RESET_MARK="<span style='color:green'>⚠️ Yes</span>"
+          # GitHub strips style attributes from step summaries, so the colours
+          # these used to carry never rendered — and they had Yes green and No
+          # red besides.
+          if [ "${{ inputs.reset }}" = "true" ]; then
+            RESET_MARK="⚠️ Yes — the database was wiped before this deploy"
           else
-            RESET_MARK="<span style='color:red'>✅ No</span>"
+            RESET_MARK="✅ No"
           fi
           SUMMARY=$(cat <<EOF
           ### Deployment Summary
