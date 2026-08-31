@@ -7,6 +7,12 @@ on:
       # core tag, so a single core-image-tag drives both images.
       core-image-tag:
         type: string
+      countryconfig-image-tag:
+        type: string
+        required: false
+      countryconfig-image-name:
+        type: string
+        required: false
       data-seed-enabled:
         type: boolean
       environment:
@@ -17,6 +23,14 @@ on:
         description: "Tag of the core image (also tags the testland/countryconfig image)"
         required: true
         default: "v2.1.0"
+      countryconfig-image-tag:
+        description: "migration-* only: countryconfig image tag or commit sha. Empty follows the core tag."
+        required: false
+        type: string
+      countryconfig-image-name:
+        description: "migration-* only: countryconfig image name, e.g. opencrvs/ocrvs-countryconfig for a pre-2.1 image. Empty uses ocrvs-testland."
+        required: false
+        type: string
       data-seed-enabled:
         description: "Data seeding during deployment"
         required: false
@@ -83,14 +97,19 @@ jobs:
       BRANCH: ${{ github.ref_name }}
       GITHUB_ACTOR: ${{ github.actor }}
       CORE_IMAGE_TAG: ${{ inputs.core-image-tag }}
-      # testland ships in core, so the countryconfig image carries the core tag
-      COUNTRYCONFIG_IMAGE_TAG: ${{ inputs.core-image-tag }}
+      # testland ships in core, so the countryconfig image carries the core tag.
+      # The migration-* environments deploy a pre-2.1 release as their starting
+      # point, where the countryconfig was still published from its own repo on
+      # its own tag (often a commit sha), so those two environments — and only
+      # those — may override the image. Empty inputs keep the coupled default.
+      COUNTRYCONFIG_IMAGE_TAG: ${{ (startsWith(inputs.environment, 'migration-') && inputs.countryconfig-image-tag) || inputs.core-image-tag }}
       # testland (packages/testland in opencrvs-core), published to ghcr by
       # core's image matrix. No "/" in the name => inherits platform.repository
       # (ghcr.io/opencrvs), resolving to ghcr.io/opencrvs/ocrvs-testland
       # (public, no pull secret needed). The companion assets image resolves to
-      # ocrvs-testland:<tag>-assets.
-      COUNTRYCONFIG_IMAGE_NAME: ocrvs-testland
+      # ocrvs-testland:<tag>-assets. A name carrying a "/" is used verbatim, so
+      # an override reaches images outside that registry.
+      COUNTRYCONFIG_IMAGE_NAME: ${{ (startsWith(inputs.environment, 'migration-') && inputs.countryconfig-image-name) || 'ocrvs-testland' }}
       SENDER_EMAIL_ADDRESS: ${{ secrets.SENDER_EMAIL_ADDRESS }}
       ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
     runs-on:
@@ -116,6 +135,7 @@ jobs:
           |-----|-------|
           | Environment URL | https://$PUBLIC_DOMAIN |
           | Core image tag | \`${{ inputs.core-image-tag }}\` |
+          | Countryconfig image | \`$COUNTRYCONFIG_IMAGE_NAME:$COUNTRYCONFIG_IMAGE_TAG\` |
           | Branch name | \`${{ github.ref_name }}\` |
           | Reset environment | $RESET_MARK |
           EOF
