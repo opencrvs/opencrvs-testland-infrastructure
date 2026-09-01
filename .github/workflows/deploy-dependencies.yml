@@ -87,8 +87,8 @@ jobs:
             --namespace "opencrvs-deps-${ENV}" \
             -f environments/${ENV}/dependencies/values.yaml \
             -f environments/${ENV}/dependencies/values.override.yaml \
-            --set backup.host={{ vars.BACKUP_HOST }} \
-            --set restore.host={{ vars.RESTORE_HOST }} \
+            --set backup.host=${{ vars.BACKUP_HOST }} \
+            --set restore.host=${{ vars.RESTORE_HOST }} \
             --create-namespace \
             --timeout 15m \
             --set hostname=${{ vars.DOMAIN }} \
