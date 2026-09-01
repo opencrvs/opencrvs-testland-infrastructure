@@ -22,15 +22,17 @@ on:
       core-image-tag:
         description: "Tag of the core image (also tags the testland/countryconfig image)"
         required: true
-        default: "v2.1.0"
+        default: "v2.1.0-beta"
       countryconfig-image-tag:
         description: "migration-* only: countryconfig image tag or commit sha. Empty follows the core tag."
         required: false
         type: string
+        default: "910b4d1"
       countryconfig-image-name:
         description: "migration-* only: countryconfig image name, e.g. opencrvs/ocrvs-countryconfig for a pre-2.1 image. Empty uses ocrvs-testland."
         required: false
         type: string
+        default: "opencrvs/opencrvs-testland"
       data-seed-enabled:
         description: "Data seeding during deployment"
         required: false
@@ -39,7 +41,7 @@ on:
       environment:
         description: "Target environment"
         required: true
-        default: "development"
+        default: "migration-staging"
         type: choice
         options:
           - e2e
