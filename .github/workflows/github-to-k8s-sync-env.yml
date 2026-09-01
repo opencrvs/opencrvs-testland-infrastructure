@@ -10,7 +10,7 @@ on:
         default: "development"
         type: choice
         options:
-          - ""
+          - migration-staging
       namespace_template:
         description: "Secrets mapping template"
         default: "opencrvs"
