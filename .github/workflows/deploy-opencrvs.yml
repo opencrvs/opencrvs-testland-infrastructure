@@ -76,7 +76,10 @@ jobs:
       GITHUB_ACTOR: ${{ github.actor }}
       CORE_IMAGE_TAG: ${{ inputs.core-image-tag }}
       COUNTRYCONFIG_IMAGE_TAG: ${{ inputs.countryconfig-image-tag }}
-      COUNTRYCONFIG_IMAGE_NAME: ${{ secrets.DOCKERHUB_ACCOUNT || 'opencrvs' }}/${{ secrets.DOCKERHUB_REPO || 'ocrvs-farajaland'}}
+      # Hardcoded: the migration-staging environment's DOCKERHUB_REPO reads
+      # 'ocrvs-testland', which is not a Docker Hub repo. Both countryconfig
+      # images for the 2.0 -> 2.1 rehearsal live in opencrvs/opencrvs-testland.
+      COUNTRYCONFIG_IMAGE_NAME: opencrvs/opencrvs-testland
       SENDER_EMAIL_ADDRESS: ${{ secrets.SENDER_EMAIL_ADDRESS }}
       ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
     runs-on:
