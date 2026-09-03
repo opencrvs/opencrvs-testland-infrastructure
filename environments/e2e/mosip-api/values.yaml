@@ -2,9 +2,6 @@ ingress:
   tls_resolver: letsencrypt
   ssl_enabled: true
 
-platform:
-  tag: 32a4c80
-
 mosip_api:
   enabled: true
   secrets:
