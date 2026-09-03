@@ -5,8 +5,14 @@ on:
     inputs:
       environment:
         type: string
+      core-image-tag:
+        type: string
   workflow_dispatch:
     inputs:
+      core-image-tag:
+        description: "Tag of the core image (also tags the testland/countryconfig image)"
+        required: true
+        default: "v2.1.0"
       environment:
         description: "Target environment"
         required: true
@@ -58,6 +64,7 @@ jobs:
           helm upgrade --install mosip-api oci://ghcr.io/opencrvs/opencrvs-mosip:${MOSIP_CHART_VERSION} \
           --namespace "opencrvs-${ENV}" \
           -f environments/${ENV}/mosip-api/values.yaml \
+          --set platform.tag=${{ inputs.core-image-tag }} \
           --set hostname=${{ vars.DOMAIN }} \
           --atomic 2>&1 ; STATUS=$?;
             kill $STERN_PID 2>/dev/null || true

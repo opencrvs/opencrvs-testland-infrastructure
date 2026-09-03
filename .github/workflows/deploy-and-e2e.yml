@@ -111,6 +111,15 @@ jobs:
     with:
       environment: "e2e"
     secrets: inherit
+
+  deploy-mosip:
+    needs: reset-data
+    uses: ./.github/workflows/deploy-mosip.yml
+    with:
+      core-image-tag: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }}
+      environment: "e2e"
+    secrets: inherit
+
   deploy:
     uses: ./.github/workflows/deploy-opencrvs.yml
     if: "!cancelled()"
