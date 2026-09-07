@@ -12,7 +12,7 @@ on:
           - perftest
           - qa-hotfix
 env:
-  DEPENDENCIES_CHART_VERSION: "v2.0.2"
+  DEPENDENCIES_CHART_VERSION: "v2.0.1"
   TRAEFIK_CHART_VERSION: "39.0.0"
 jobs:
   approve:
