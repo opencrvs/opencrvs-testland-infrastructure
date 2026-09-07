@@ -15,6 +15,7 @@ on:
           - migration-staging
           - qa
           - qa-hotfix
+          - perftest
       namespace_template:
         description: "Secrets mapping template"
         default: "opencrvs"

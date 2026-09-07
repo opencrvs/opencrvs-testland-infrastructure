@@ -14,6 +14,7 @@ on:
           - migration-staging
           - qa
           - qa-hotfix
+          - perftest
 env:
   DEPENDENCIES_CHART_VERSION: "v2.1.0"
   TRAEFIK_CHART_VERSION: "41.0.2"
