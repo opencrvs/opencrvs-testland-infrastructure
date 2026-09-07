@@ -13,8 +13,8 @@ on:
         default: "qa"
         required: true
         options:
-          - qa
           - non-prod
+          - perftest
 
 permissions:
   contents: read

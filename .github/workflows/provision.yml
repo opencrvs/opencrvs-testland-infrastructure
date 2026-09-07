@@ -10,6 +10,7 @@ on:
         type: choice
         options:
           - non-prod
+          - perftest
       tags:
         description: 'Tags to apply to the provisioned resources'
         required: true

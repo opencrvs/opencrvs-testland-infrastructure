@@ -14,6 +14,7 @@ on:
           - migration-staging
           - qa
           - qa-hotfix
+          - perftest
   workflow_call:
     inputs:
       environment:
