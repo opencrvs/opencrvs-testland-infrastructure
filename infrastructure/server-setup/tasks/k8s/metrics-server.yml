@@ -10,7 +10,7 @@
     kubectl apply -f /tmp/metrics-server.yaml
   become: yes
   environment:
-    KUBECONFIG: /home/provision/.kube/config
+    KUBECONFIG: /home/{{ provisioning_user }}/.kube/config
 
 - name: Add --kubelet-insecure-tls to metrics-server
   shell: |
@@ -18,7 +18,7 @@
     --type='json' \
     -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-insecure-tls"}]'
   environment:
-    KUBECONFIG: /home/provision/.kube/config
+    KUBECONFIG: /home/{{ provisioning_user }}/.kube/config
 
 - name: Wait for metrics server to be ready
   shell: |
@@ -27,7 +27,7 @@
   retries: 5
   delay: 30
   environment:
-    KUBECONFIG: /home/provision/.kube/config
+    KUBECONFIG: /home/{{ provisioning_user }}/.kube/config
 
 - name: Verify metrics server installation
   shell: |
@@ -35,7 +35,7 @@
   become: yes
   register: metrics_server_status
   environment:
-    KUBECONFIG: /home/provision/.kube/config
+    KUBECONFIG: /home/{{ provisioning_user }}/.kube/config
 - name: Display metrics server status
   debug:
     msg: "Metrics server is installed and running: {{ metrics_server_status.stdout }}"

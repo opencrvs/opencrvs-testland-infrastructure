@@ -36,8 +36,8 @@ done
 
 # Provision user setup script
 PROVISION_CMDS=$(cat <<'EOF'
-sudo addgroup --gid 1000 provision
-sudo adduser --gecos "OpenCRVS Provisioning user" --disabled-password --uid 1000 --gid 1000 provision
+sudo addgroup provision
+sudo adduser --gecos "OpenCRVS Provisioning user" --disabled-password --ingroup provision provision
 sudo usermod -aG sudo provision
 echo 'provision ALL=(ALL) NOPASSWD:ALL' | sudo tee -a /etc/sudoers
 EOF

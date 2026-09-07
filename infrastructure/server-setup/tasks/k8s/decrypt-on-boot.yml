@@ -37,8 +37,8 @@
   when: disk_encryption_key is defined
   ansible.builtin.copy:
     dest: "{{ disk_encryption_key_path }}"
-    group: 1000
-    owner: 1000
+    group: "{{ provisioning_user }}"
+    owner: "{{ provisioning_user }}"
     mode: g+rwx
     content: |
       DISK_ENCRYPTION_KEY={{ disk_encryption_key }}
@@ -64,8 +64,8 @@
 - name: Copy reboot.service systemd file. Must decrypt disk on reboot
   ansible.builtin.copy:
     dest: /etc/systemd/system/reboot.service
-    group: 1000
-    owner: 1000
+    group: "{{ provisioning_user }}"
+    owner: "{{ provisioning_user }}"
     mode: g+rwx
     content: |
       [Unit]

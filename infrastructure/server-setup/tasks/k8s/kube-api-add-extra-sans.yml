@@ -110,9 +110,9 @@
   when: sans_update_needed
   copy:
     src: /etc/kubernetes/admin.conf
-    dest: /home/provision/.kube/config
-    owner: provision
-    group: provision
+    dest: "/home/{{ provisioning_user }}/.kube/config"
+    owner: "{{ provisioning_user }}"
+    group: "{{ provisioning_user }}"
     mode: '0600'
     remote_src: yes
     force: yes

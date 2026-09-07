@@ -6,14 +6,14 @@
     curl  --retry-all-errors --retry 5 -O https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/v1_crd_projectcalico_org.yaml
     kubectl apply --server-side=true --force-conflicts -f v1_crd_projectcalico_org.yaml
   environment:
-    KUBECONFIG: /home/provision/.kube/config
+    KUBECONFIG: /home/{{ provisioning_user }}/.kube/config
 
 - name: Install Tigera Operator
   shell: |
     curl  --retry-all-errors --retry 5 -O https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/tigera-operator.yaml
     kubectl apply --server-side=true --force-conflicts -f tigera-operator.yaml
   environment:
-    KUBECONFIG: /home/provision/.kube/config
+    KUBECONFIG: /home/{{ provisioning_user }}/.kube/config
 
 - name: Create Calico custom resources configuration
   copy:
@@ -41,14 +41,14 @@
 - name: Apply Calico custom resources
   shell: kubectl create -f /tmp/custom-resources.yaml
   environment:
-    KUBECONFIG: /home/provision/.kube/config
+    KUBECONFIG: /home/{{ provisioning_user }}/.kube/config
   register: calico_result
   failed_when: calico_result.rc != 0 and "already exists" not in calico_result.stderr
 
 - name: Wait for all nodes to be ready
   shell: kubectl get nodes --no-headers | grep -v Ready | wc -l
   environment:
-    KUBECONFIG: /home/provision/.kube/config
+    KUBECONFIG: /home/{{ provisioning_user }}/.kube/config
   register: nodes_not_ready
   until: nodes_not_ready.stdout == "0"
   retries: 30
@@ -57,7 +57,7 @@
 - name: Display cluster info
   shell: kubectl cluster-info
   environment:
-    KUBECONFIG: /home/provision/.kube/config
+    KUBECONFIG: /home/{{ provisioning_user }}/.kube/config
   register: cluster_info
 
 - name: Show cluster information
@@ -67,7 +67,7 @@
 - name: Display node status
   shell: kubectl get nodes
   environment:
-    KUBECONFIG: /home/provision/.kube/config
+    KUBECONFIG: /home/{{ provisioning_user }}/.kube/config
   register: node_status
 
 - name: Show node status
@@ -77,7 +77,7 @@
 - name: Display system pods status
   shell: kubectl get pods -n kube-system
   environment:
-    KUBECONFIG: /home/provision/.kube/config
+    KUBECONFIG: /home/{{ provisioning_user }}/.kube/config
   register: system_pods
 
 - name: Show system pods

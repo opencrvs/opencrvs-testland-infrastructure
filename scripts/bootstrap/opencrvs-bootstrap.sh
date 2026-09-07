@@ -16,8 +16,6 @@
 set -e
 
 # Configurable params
-PROVISION_UID=1000
-PROVISION_GID=1000
 PROVISION_USER="provision"
 PROVISION_GROUP="provision"
 MIN_UBUNTU_VERSION="24.04"

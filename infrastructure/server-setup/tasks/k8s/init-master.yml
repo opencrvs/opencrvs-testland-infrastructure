@@ -15,7 +15,7 @@
 
 - name: Create .kube directory for provision user
   file:
-    path: /home/provision/.kube
+    path: "/home/{{ provisioning_user }}/.kube"
     state: directory
     mode: '0755'
 
@@ -23,7 +23,7 @@
   become: yes
   copy:
     src: /etc/kubernetes/admin.conf
-    dest: /home/provision/.kube/config
+    dest: /home/{{ provisioning_user }}/.kube/config
     owner: "{{ ansible_user }}"
     # FIXME: double check provision workflow
     group: application
@@ -37,7 +37,7 @@
   shell: |
     kubectl taint nodes --all node-role.kubernetes.io/control-plane-
   environment:
-    KUBECONFIG: /home/provision/.kube/config
+    KUBECONFIG: /home/{{ provisioning_user }}/.kube/config
   failed_when: 
       - taint_result.rc != 0
       - '"not found" not in taint_result.stderr'
