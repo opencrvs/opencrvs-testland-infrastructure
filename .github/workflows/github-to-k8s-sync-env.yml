@@ -10,6 +10,7 @@ on:
         default: "development"
         type: choice
         options:
+          - perftest
           - qa-hotfix
       namespace_template:
         description: "Secrets mapping template"
