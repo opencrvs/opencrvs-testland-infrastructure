@@ -23,10 +23,21 @@
     update_cache: yes
   when: pgdg_repo is changed
 
+- name: Unhold pgBackRest before install
+  ansible.builtin.dpkg_selections:
+    name: pgbackrest
+    selection: install
+
 - name: Install pgBackRest
   ansible.builtin.apt:
     name: "pgbackrest={{ pgbackrest_version }}-*"
     state: present
+    allow_downgrade: true
+
+- name: Hold pgBackRest at pinned version
+  ansible.builtin.dpkg_selections:
+    name: pgbackrest
+    selection: hold
 
 - name: Configure pgBackRest global repo path
   ansible.builtin.copy:
