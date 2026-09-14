@@ -51,7 +51,6 @@ platform:
     # Default value for credentials created while yarn environment:init
     - name: dockerhub-credentials
 
-
 auth:
   env:
     TWO_FA_ENABLED: false
@@ -61,7 +60,7 @@ events:
     TWO_FA_ENABLED: false
 
 dashboards:
-  use_default_credentials: false
+  use_default_credentials: true
   enabled: true
 
 on_restore_cronjob:
