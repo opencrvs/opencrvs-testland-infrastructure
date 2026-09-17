@@ -27,6 +27,7 @@ countryconfig:
 events:
   env:
     DEFAULT_USER_PASSWORD: "test"
+    TWO_FA_ENABLED: true
 
 postgres_on_deploy:
   secrets:
@@ -35,3 +36,7 @@ postgres_on_deploy:
       - REFERENCE_DATA_POSTGRES_PASSWORD
       - REFERENCE_DATA_EDITOR_USER
       - REFERENCE_DATA_EDITOR_PASSWORD
+
+auth:
+  env:
+    TWO_FA_ENABLED: true
