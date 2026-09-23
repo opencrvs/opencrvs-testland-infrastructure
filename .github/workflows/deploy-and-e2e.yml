@@ -120,7 +120,7 @@ jobs:
       environment: "e2e"
     secrets: inherit
 
-  deploy-opencrvs:
+  deploy:
     uses: ./.github/workflows/deploy-opencrvs.yml
     if: "!cancelled()"
     needs:
