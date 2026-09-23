@@ -120,15 +120,6 @@ jobs:
       environment: "e2e"
     secrets: inherit
 
-  deploy-mosip:
-    uses: ./.github/workflows/deploy-mosip.yml
-    if: "!cancelled()"
-    with:
-      core-image-tag: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }}
-      environment: "e2e"
-      data-seed-enabled: true
-    secrets: inherit
-
   deploy-opencrvs:
     uses: ./.github/workflows/deploy-opencrvs.yml
     if: "!cancelled()"
