@@ -112,29 +112,31 @@ jobs:
       environment: "e2e"
     secrets: inherit
 
-  deploy-mosip:
-    needs: reset-data
-    uses: ./.github/workflows/deploy-mosip.yml
-    with:
-      core-image-tag: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }}
-      environment: "e2e"
-    secrets: inherit
-
   deploy:
     uses: ./.github/workflows/deploy-opencrvs.yml
     if: "!cancelled()"
     needs:
       - reset-data
       - data-seed
-      - deploy-mosip
     with:
       core-image-tag: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }}
       environment: "e2e"
       data-seed-enabled: true
     secrets: inherit
 
+
+  deploy-mosip:
+    if: "!cancelled()"
+    needs:
+      - deploy
+    uses: ./.github/workflows/deploy-mosip.yml
+    with:
+      core-image-tag: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }}
+      environment: "e2e"
+    secrets: inherit
+
   test:
-    needs: [debug, deploy, cache-node-js]
+    needs: [debug, deploy, deploy-mosip, cache-node-js]
     if: "!cancelled() && needs.deploy.result == 'success'"
     runs-on: ubuntu-24.04
     environment: "e2e"
