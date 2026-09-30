@@ -14,7 +14,6 @@ on:
         required: true
         options:
           - non-prod
-          - perftest
 jobs:
   approve:
     environment: ${{ inputs.environment }}

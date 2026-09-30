@@ -227,10 +227,10 @@
   dependencies:
     "@octokit/openapi-types" "^18.0.0"
 
-"@opencrvs/toolkit@2.1":
-  version "2.1.0"
-  resolved "https://registry.yarnpkg.com/@opencrvs/toolkit/-/toolkit-2.1.0.tgz#cbef4736778bbc200955d4de3bcca6102592d84a"
-  integrity sha512-MuKlE0b/6NxBqgtEFtOQs5OiE1XZ/+u27vT2SxPBx3L4ez9Jnzwk5zTReGlyM3sjOUBv2YI8bp955gI1Tpe7Cw==
+"@opencrvs/toolkit@2.1.0-rc.3028b2e":
+  version "2.1.0-rc.3028b2e"
+  resolved "https://registry.yarnpkg.com/@opencrvs/toolkit/-/toolkit-2.1.0-rc.3028b2e.tgz#649f2289c49464541cf19d2fe43a948995c81649"
+  integrity sha512-dMdiU4JtIKoh4z+EDKfVGmTAnKkcNQdUI2bDzMnc0M7FcA1BWtTHf5nKCs9/6LZDSr9D+X9igfAycoawJ637cA==
   dependencies:
     "@inquirer/prompts" "^8.3.0"
     "@octokit/core" "4.2.1"
