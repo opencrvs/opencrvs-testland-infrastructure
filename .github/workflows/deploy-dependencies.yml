@@ -59,7 +59,7 @@ jobs:
       ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install Traefik
         run: |
           touch environments/${ENV}/traefik/values.override.yaml
@@ -88,8 +88,8 @@ jobs:
             --namespace "opencrvs-deps-${ENV}" \
             -f environments/${ENV}/dependencies/values.yaml \
             -f environments/${ENV}/dependencies/values.override.yaml \
-            --set backup.host={{ vars.BACKUP_HOST }} \
-            --set restore.host={{ vars.RESTORE_HOST }} \
+            --set backup.host=${{ vars.BACKUP_HOST }} \
+            --set restore.host=${{ vars.RESTORE_HOST }} \
             --create-namespace \
             --timeout 15m \
             --set hostname=${{ vars.DOMAIN }} \

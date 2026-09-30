@@ -11,8 +11,8 @@
 
 set -e
 
-IMG="ubuntu:oracular"
-NODES=("manager" "worker")
+IMG="ubuntu:24.04"
+NODES=("master" "worker")
 
 for NODE in "${NODES[@]}"; do
   if orb list | grep -q "^$NODE "; then
@@ -36,8 +36,8 @@ done
 
 # Provision user setup script
 PROVISION_CMDS=$(cat <<'EOF'
-sudo addgroup --gid 1000 provision
-sudo adduser --gecos "OpenCRVS Provisioning user" --disabled-password --uid 1000 --gid 1000 provision
+sudo addgroup provision
+sudo adduser --gecos "OpenCRVS Provisioning user" --disabled-password --ingroup provision provision
 sudo usermod -aG sudo provision
 echo 'provision ALL=(ALL) NOPASSWD:ALL' | sudo tee -a /etc/sudoers
 EOF
@@ -51,9 +51,9 @@ for NODE in "${NODES[@]}"; do
 done
 
 
-# SSH keygen on manager
-echo "Generating SSH key on manager..."
-orb exec -m manager -u root bash -c '
+# SSH keygen on master
+echo "Generating SSH key on master..."
+orb exec -m master -u root bash -c '
 mkdir -p /home/provision/.ssh
 ssh-keygen -t rsa -f /tmp/ssh-key -N ""
 cat /tmp/ssh-key.pub >> /home/provision/.ssh/authorized_keys
@@ -63,9 +63,9 @@ echo -e "\n\nThis is the SSH_KEY you add to Github Environments:\n\n"
 cat /tmp/ssh-key
 '
 
-# Copy pub key from manager to worker
+# Copy pub key from master to worker
 echo "Copying pubkey to worker..."
-PUBKEY=$(orb exec -m manager cat /tmp/ssh-key.pub)
+PUBKEY=$(orb exec -m master cat /tmp/ssh-key.pub)
 orb exec -m worker -u root bash -c "
 mkdir -p /home/provision/.ssh
 echo '$PUBKEY' >> /home/provision/.ssh/authorized_keys
@@ -74,8 +74,9 @@ chown -R provision:provision /home/provision/.ssh
 "
 # Get private key for ansible
 mkdir -p .ssh
-orb exec -u root -m manager chmod 444 /tmp/ssh-key
-orb pull -m manager /tmp/ssh-key ./.ssh/ssh-key
+rm -f ./.ssh/ssh-key
+PRIVATE_KEY=$(orb exec -u root -m master cat /tmp/ssh-key)
+echo "$PRIVATE_KEY" > ./.ssh/ssh-key
 chmod 400 ./.ssh/ssh-key
-# Clean up private keys on manager
-orb exec -u root -m manager rm -f /tmp/ssh-key /tmp/ssh-key.pub
+# Clean up private keys on master
+orb exec -u root -m master rm -f /tmp/ssh-key /tmp/ssh-key.pub

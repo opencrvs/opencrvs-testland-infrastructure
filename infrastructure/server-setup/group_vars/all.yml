@@ -18,14 +18,24 @@ backup_server_user_home: '/home/backup'
 # Amount of backups to keep (one week)
 amount_of_backups_to_keep: 7
 
-# Disk Encryption key location as an example (in production use a hardware security module)
+# Disk Encryption key location:
+# On single server deployments, the disk encryption key is stored on the same server as encrypted data.
 disk_encryption_key_path: /root/disk-encryption-key.txt
+# On deployments with a separate backup server, the disk encryption key is stored on the backup server 
+# and encrypted with backup encryption passphrase.
+remote_disk_encryption_key_path: /home/backup/disk-encryption-key.txt
 
 # Path to encrypted file with citizens data
 data_file_path: /cryptfs_file_sparse.img
 
 # Minimum required disk space for successful kubernetes deployment
-min_free_disk_size: "30g"
+min_free_disk_size: "50g"
+# Minimum free disk space to reserve, as a percentage of the encrypted partition size.
+# ext4 journal and inode-table overhead scales with partition size, so large encrypted
+# partitions need proportionally more headroom than the fixed min_free_disk_size above.
+# The larger of the two (fixed vs percentage-based) is required as free space.
+min_free_disk_percent: 10
+
 # Kubernetes components versions:
 # - kubeadm
 # - kubelet
@@ -89,6 +99,7 @@ cert_manager_version: "v1.21.0"
 
 # Action runner controller chart version
 arc_chart_version: "0.23.7"
+arc_opencrvs_runner_version: "latest"
 
 # Postgres: differencial backup support (pgBackRest) version
 pgbackrest_version: "2.59.0"

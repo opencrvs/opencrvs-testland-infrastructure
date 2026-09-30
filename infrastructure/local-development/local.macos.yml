@@ -8,20 +8,28 @@
 # Copyright (C) The OpenCRVS Authors located at https://github.com/opencrvs/opencrvs-core/blob/master/AUTHORS.
 all:
   vars:
-    users: {}
+    ansible_user: provision
+    single_node: false
+    users: []
+    # OrbStack's guest kernel denies conntrack sysctl writes from non-init
+    # netns; skip kube-proxy's auto-tuning of nf_conntrack_max here only.
+    disable_conntrack_tuning: true
+    kube_cluster_env: local-dev
 
-docker-manager-first:
-  hosts:
-    manager:
-      ansible_host: 'manager.orb.local'
-      ansible_user: 'provision'
-      data_label: data1
+  children:
+    master:
+      hosts:
+        master:
+          ansible_host: master.orb.local
+          ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+          labels:
+            traefik-role: ingress
+            role: data1
 
-# QA and staging servers are not configured to use workers.
-docker-workers:
-  hosts:
-    worker:
-      ansible_host: 'worker.orb.local'
-      ansible_user: 'provision'
-      data_label: data2
-
+    workers:
+      hosts:
+        worker0:
+          ansible_host: worker.orb.local
+          ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+          labels:
+            role: data2

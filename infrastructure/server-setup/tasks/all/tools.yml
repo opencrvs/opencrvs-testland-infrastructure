@@ -11,6 +11,8 @@
   loop:
     - curl
     - gnupg2
+    - openssl
+    - openssh-client
     - software-properties-common
     - apt-transport-https
     - ca-certificates
@@ -21,6 +23,7 @@
     - python3-pip
     - python3-kubernetes
     - pigz
+    - ufw
 
 - name: 'Ensure python-3pexpect is absent'
   apt:

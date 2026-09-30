@@ -65,6 +65,7 @@ jobs:
             --namespace ${namespace} \
             --set platform.tag="${{ inputs.core-image-tag }}" \
             --set validation.enabled=true \
+            --set hostname=${{ vars.DOMAIN }} \
             --show-only templates/service-accounts.yaml \
             --show-only templates/validate-${{ inputs.stage }}-job.yaml \
             oci://ghcr.io/opencrvs/opencrvs-services \
