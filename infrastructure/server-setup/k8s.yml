@@ -118,6 +118,7 @@
       include_tasks: tasks/k8s/cert-manager.yml
     - name: Install k8s self-hosted runner
       include_tasks: tasks/k8s/self-hosted-runner.yml
+      when: kube_runner_token is defined and kube_runner_token | trim != ''
 
 - name: Additional configuration
   become: yes

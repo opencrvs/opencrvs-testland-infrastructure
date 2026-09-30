@@ -27,10 +27,7 @@ usage() {
   exit 1
 }
 
-# TODO: Make UID/GID configurable via options
-GROUP_ID=1000
 GROUP_NAME="provision"
-USER_ID=1000
 USER_NAME="provision"
 
 log() {
@@ -46,43 +43,21 @@ while [[ $# -gt 0 ]]; do
 done
 
 # --- Group checks and creation ---
-group_info=$(getent group "$GROUP_ID")
-group_by_name=$(getent group "$GROUP_NAME")
-
-if [[ -n "$group_info" ]]; then
-    actual_group=$(echo "$group_info" | cut -d: -f1)
-    if [[ "$actual_group" == "$GROUP_NAME" ]]; then
-        log "✅ Group with GID $GROUP_ID and name $GROUP_NAME exists."
-    else
-        log "❌ FAIL: GID $GROUP_ID exists as group '$actual_group', not '$GROUP_NAME'."
-        exit 1
-    fi
-elif [[ -n "$group_by_name" ]]; then
-    log "❌ FAIL: Group name '$GROUP_NAME' exists, but with different GID."
-    exit 1
+# No GID is requested: the system assigns the first available one.
+if getent group "$GROUP_NAME" > /dev/null; then
+    log "✅ Group '$GROUP_NAME' already exists."
 else
-    log "🚀 Creating group: $GROUP_NAME with GID: $GROUP_ID"
-    sudo groupadd -g $GROUP_ID $GROUP_NAME
+    log "🚀 Creating group: $GROUP_NAME with first available GID"
+    sudo groupadd $GROUP_NAME
 fi
 
 # --- User checks and creation ---
-user_info=$(getent passwd "$USER_ID")
-user_by_name=$(getent passwd "$USER_NAME")
-
-if [[ -n "$user_info" ]]; then
-    actual_user=$(echo "$user_info" | cut -d: -f1)
-    if [[ "$actual_user" == "$USER_NAME" ]]; then
-        log "✅ User with UID $USER_ID and name $USER_NAME exists."
-    else
-        log "❌ FAIL: UID $USER_ID exists as user '$actual_user', not '$USER_NAME'."
-        exit 1
-    fi
-elif [[ -n "$user_by_name" ]]; then
-    log "❌ FAIL: User name '$USER_NAME' exists, but with different UID."
-    exit 1
+# No UID is requested: the system assigns the first available one.
+if getent passwd "$USER_NAME" > /dev/null; then
+    log "✅ User '$USER_NAME' already exists."
 else
-    log "🚀 Creating user: $USER_NAME with UID: $USER_ID and group: $GROUP_NAME"
-    sudo useradd -u $USER_ID -g $GROUP_NAME -s /usr/bin/bash --create-home $USER_NAME
+    log "🚀 Creating user: $USER_NAME with first available UID and group: $GROUP_NAME"
+    sudo useradd -g $GROUP_NAME -s /usr/bin/bash --create-home $USER_NAME
 fi
 
 # --- Sudo access checks and grant ---

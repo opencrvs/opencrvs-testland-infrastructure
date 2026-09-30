@@ -69,5 +69,5 @@
           spec:
             serviceAccountName: opencrvs-runner
             repository: "{{ repository }}"
-            image: ghcr.io/opencrvs/opencrvs-github-runner:latest
+            image: "ghcr.io/opencrvs/opencrvs-github-runner:{{ arc_opencrvs_runner_version }}"
             labels: "{{ base_labels + extra_labels }}"

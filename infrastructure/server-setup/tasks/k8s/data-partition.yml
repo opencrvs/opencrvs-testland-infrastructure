@@ -11,7 +11,6 @@
   register: free_disk_size_result
   when:
     - disk_encryption_key is defined
-    - not encryptedFileSystemPreCheck.stat.exists
 
 - name: Normalize file size units (handles G, g, Gb, GB, etc.)
   set_fact:
@@ -20,24 +19,54 @@
     min_free_disk_size_gb: "{{ min_free_disk_size | regex_replace('[^0-9]', '') | int }}"
   when:
     - disk_encryption_key is defined
-    - not encryptedFileSystemPreCheck.stat.exists
+
+- name: Calculate minimum free space required by percentage of the encrypted partition
+  set_fact:
+    min_free_disk_percent_gb: "{{ (encrypted_file_size_gb | float * min_free_disk_percent | float / 100) | round(0, 'ceil') | int }}"
+  when:
+    - disk_encryption_key is defined
+
+- name: Reserve the larger of the fixed and percentage-based minimums
+  set_fact:
+    required_free_disk_size_gb: "{{ [min_free_disk_size_gb | int, min_free_disk_percent_gb | int] | max }}"
+  when:
+    - disk_encryption_key is defined
 
 - name: Calculate total required space (in GB)
   set_fact:
-    required_size_gb: "{{ encrypted_file_size_gb | int + min_free_disk_size_gb | int }}"
+    required_size_gb: "{{ encrypted_file_size_gb | int + required_free_disk_size_gb | int }}"
   when:
     - disk_encryption_key is defined
-    - not encryptedFileSystemPreCheck.stat.exists
 
 - name: Fail if not enough free space
   fail:
-    msg: "Not enough free disk space! Required: {{ required_size_gb }}G, Free: {{ free_disk_size_gb }}G"
+    msg: >-
+      Not enough free disk space on the root partition. Required: {{ required_size_gb }}G
+      (encrypted partition: {{ encrypted_file_size_gb }}G + reserved headroom: {{ required_free_disk_size_gb }}G,
+      i.e. the greater of {{ min_free_disk_size_gb }}G fixed minimum and {{ min_free_disk_percent }}% of the encrypted partition).
+      Currently available: {{ free_disk_size_gb }}G.
+      Please free up or add at least {{ required_size_gb | int - free_disk_size_gb | int }}G more to the root partition before continuing.
   when:
     - free_disk_size_gb is defined
     - required_size_gb is defined
     - disk_encryption_key is defined
     - not encryptedFileSystemPreCheck.stat.exists
     - free_disk_size_gb | int < required_size_gb | int
+
+- name: Fail if not enough free space (allocated data partition)
+  fail:
+    msg: >-
+      Not enough free disk space on the root partition. The encrypted partition ({{ encrypted_file_size_gb }}G)
+      is already allocated, so only the reserved headroom is required as free space: {{ required_free_disk_size_gb }}G
+      (the greater of {{ min_free_disk_size_gb }}G fixed minimum and {{ min_free_disk_percent }}% of the encrypted partition).
+      Currently available: {{ free_disk_size_gb }}G.
+      Please free up or add at least {{ required_free_disk_size_gb | int - free_disk_size_gb | int }}G more to the root partition before continuing.
+  when:
+    - free_disk_size_gb is defined
+    - required_free_disk_size_gb is defined
+    - disk_encryption_key is defined
+    - encryptedFileSystemPreCheck.stat.exists
+    - free_disk_size_gb | int < required_free_disk_size_gb | int
 
 - name: "Bootstrap encrypted data folder"
   script: ./files/cryptfs/bootstrap.sh -s {{ encrypted_disk_size }} -p {{ disk_encryption_key }} -f {{ data_file_path }}
