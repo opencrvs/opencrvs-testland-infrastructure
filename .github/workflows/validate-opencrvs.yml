@@ -6,10 +6,13 @@ on:
       environment:
         description: "Target environment"
         required: true
-        default: "development"
+        default: "e2e"
         type: choice
         options:
-          - ""
+          - e2e
+          - migration-production
+          - migration-staging
+          - qa
       stage:
         description: "Target stage"
         required: true

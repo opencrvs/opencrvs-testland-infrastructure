@@ -100,7 +100,6 @@ jobs:
           sed -i \
             -e "s/^\(\s*OPENCRVS_CHART_VERSION:\s*\).*/\1\"v$VERSION\"/" \
             -e '/core-image-tag:/,/default:/ s/default: ".*"/default: "'"v$VERSION"'"/' \
-            -e '/countryconfig-image-tag:/,/default:/ s/default: ".*"/default: "'"v$VERSION"'"/' \
             .github/workflows/deploy-opencrvs.yml
           sed -i \
             -e "s/^\(\s*DEPENDENCIES_CHART_VERSION:\s*\).*/\1\"v$VERSION\"/" \
