@@ -16,7 +16,7 @@ on:
       core-image-tag:
         description: "Tag of the core image (also tags the testland/countryconfig image)"
         required: true
-        default: "v2.1.0"
+        default: "v2.2.0"
       data-seed-enabled:
         description: "Data seeding during deployment"
         required: false
@@ -35,7 +35,7 @@ on:
           - qa-hotfix
 env:
   # Assuming chart version matches core image tag
-  OPENCRVS_CHART_VERSION: "v2.1.0"
+  OPENCRVS_CHART_VERSION: "v2.2.0"
 jobs:
   approve:
     environment: ${{ inputs.environment }}

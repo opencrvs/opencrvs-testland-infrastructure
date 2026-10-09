@@ -15,7 +15,7 @@ on:
           - qa
           - qa-hotfix
 env:
-  DEPENDENCIES_CHART_VERSION: "v2.1.0"
+  DEPENDENCIES_CHART_VERSION: "v2.2.0"
   TRAEFIK_CHART_VERSION: "41.0.2"
 jobs:
   approve:
