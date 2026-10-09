@@ -23,10 +23,16 @@
     update_cache: yes
   when: pgdg_repo is changed
 
+- name: Gather installed packages
+  ansible.builtin.package_facts:
+    manager: apt
+
+# dpkg_selections fails if the package is unknown to dpkg (fresh server)
 - name: Unhold pgBackRest before install
   ansible.builtin.dpkg_selections:
     name: pgbackrest
     selection: install
+  when: "'pgbackrest' in ansible_facts.packages"
 
 - name: Install pgBackRest
   ansible.builtin.apt:

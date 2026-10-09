@@ -167,6 +167,9 @@
   loop:
     - containerd
     - kubelet
+  when:
+    - disk_encryption_key is defined
+    - encryptedFileSystemPostCheck.stat.exists
 
 - name: 'Setup systemd to mount encrypted folder'
   shell: systemctl daemon-reload && systemctl enable reboot.service
