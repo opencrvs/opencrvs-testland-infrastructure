@@ -9,7 +9,11 @@ on:
         default: "development"
         type: choice
         options:
-          - ""
+          - e2e
+          - migration-production
+          - migration-staging
+          - qa
+          - qa-hotfix
 env:
   DEPENDENCIES_CHART_VERSION: "v2.1.0"
   TRAEFIK_CHART_VERSION: "41.0.2"
@@ -100,7 +104,6 @@ jobs:
           helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts || true
           touch environments/${ENV}/opentelemetry/values.override.yaml
           helm upgrade --install opentelemetry-collector open-telemetry/opentelemetry-collector \
-            --namespace traefik \
             --create-namespace \
             --namespace "opencrvs-deps-${ENV}" \
             --set image.repository="otel/opentelemetry-collector-k8s" \

@@ -1,0 +1,27 @@
+##################################################################################
+# Environment-specific Helm overrides managed by yarn environment:init
+# Unmanaged keys are preserved when this file is updated.
+##################################################################################
+hostname: migration-staging.opencrvs.dev
+monitoring:
+  enabled: false
+
+elasticsearch:
+  host_data_path: /data/migration-staging/elasticsearch
+
+minio:
+  host_data_path: /data/migration-staging/minio
+
+mongodb:
+  host_data_path: /data/migration-staging/mongodb
+
+postgres:
+  host_data_path: /data/migration-staging/postgres
+
+influxdb:
+  host_data_path: /data/migration-staging/influxdb
+
+# FIXME: Keep this value till first official v2.1.0 release.
+utilities:
+  image:
+    tag: 35b1e0f
