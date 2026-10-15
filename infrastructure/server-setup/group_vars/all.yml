@@ -101,7 +101,7 @@ cert_manager_version: "v1.21.0"
 #   legacy    - summerwind actions-runner-controller
 #   scale-set - official gha-runner-scale-set with ephemeral runners
 # Override it per environment in environments/<env>/inventory-vars.yml (passed to ansible as --extra-vars)
-arc_mode: "legacy"
+arc_mode: "scale-set"
 
 # Legacy action runner controller chart version
 # FIXME: Remove after v2.4 release, when the self-hosted runner scale set is the only supported option
