@@ -101,6 +101,9 @@
           scaleSetLabels: "{{ arc_scale_set_labels }}"
           minRunners: "{{ arc_scale_set_min_runners | int }}"
           maxRunners: "{{ arc_scale_set_max_runners | int }}"
+          controllerServiceAccount:
+            name: "{{ arc_controller_release_name }}-gha-rs-controller"
+            namespace: "{{ arc_controller_namespace }}"
           template:
             spec:
               serviceAccountName: opencrvs-runner
