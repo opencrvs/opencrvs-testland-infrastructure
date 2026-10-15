@@ -1,0 +1,84 @@
+# Removes the legacy summerwind Actions Runner Controller after the runner scale set is up.
+#
+# Included after self-hosted-runner-scale-set.yml, which only completes once the scale set listener is running,
+# so the legacy runners are never removed before the new ones are able to take jobs.
+#
+# The order matters: the legacy controller must stay alive until all legacy runners are gone, it removes their
+# finalizers and deregisters them from GitHub. Removing the controller or the namespace first leaves the
+# namespace stuck in Terminating.
+# FIXME: Remove together with legacy runner support after v2.4 release
+- name: Look for the legacy runner controller namespace
+  kubernetes.core.k8s_info:
+    kind: Namespace
+    name: actions-runner-system
+  register: arc_legacy_namespace
+
+- name: Remove legacy runner controller
+  when: arc_legacy_namespace.resources | length > 0
+  block:
+    - name: Look for the legacy runner CRDs
+      kubernetes.core.k8s_info:
+        api_version: apiextensions.k8s.io/v1
+        kind: CustomResourceDefinition
+        name: runnerdeployments.actions.summerwind.dev
+      register: arc_legacy_crd
+
+    - name: Stop legacy runners
+      when: arc_legacy_crd.resources | length > 0
+      block:
+        - name: Delete legacy RunnerDeployments
+          kubernetes.core.k8s:
+            state: absent
+            api_version: actions.summerwind.dev/v1alpha1
+            kind: RunnerDeployment
+            namespace: actions-runner-system
+            delete_all: true
+            wait: true
+
+        # Gives a runner that is busy with a job time to finish. Fails after 10 minutes instead of forcing the
+        # removal, the scale set is already taking jobs, so it is safe to run the provision again later.
+        - name: Wait for legacy runners to deregister from GitHub
+          kubernetes.core.k8s_info:
+            api_version: actions.summerwind.dev/v1alpha1
+            kind: Runner
+            namespace: actions-runner-system
+          register: arc_legacy_runners
+          until: arc_legacy_runners.resources | length == 0
+          retries: 60
+          delay: 10
+
+    - name: Uninstall legacy runner controller
+      kubernetes.core.helm:
+        name: actions-runner-controller
+        release_namespace: actions-runner-system
+        state: absent
+
+    # Helm never deletes CRDs. All custom resources are gone at this point.
+    - name: Delete legacy runner CRDs
+      kubernetes.core.k8s:
+        state: absent
+        api_version: apiextensions.k8s.io/v1
+        kind: CustomResourceDefinition
+        name: "{{ item }}.actions.summerwind.dev"
+      loop:
+        - horizontalrunnerautoscalers
+        - runnerdeployments
+        - runnerreplicasets
+        - runners
+        - runnersets
+
+    - name: Delete legacy runner ClusterRoleBinding
+      kubernetes.core.k8s:
+        state: absent
+        api_version: rbac.authorization.k8s.io/v1
+        kind: ClusterRoleBinding
+        name: opencrvs-runner-admin
+
+    - name: Delete legacy runner namespace
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: Namespace
+        name: actions-runner-system
+        wait: true
+        wait_timeout: 300

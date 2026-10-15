@@ -68,6 +68,13 @@ group vars, so the value is silently ignored. This applies to every variable def
 not just `arc_mode`. Setting it as a host-level variable on the master node works but is easy to miss, and
 `inventory.yml` is managed by the toolkit while `inventory-vars.yml` is not.
 
+With `arc_mode: scale-set`, provisioning also removes the legacy runner once the scale set is up (its listener is
+running). Until then both runners are registered with the same labels and both take jobs. The cleanup deletes the
+legacy runners, waits up to 10 minutes for busy ones to finish and deregister, then uninstalls the
+`actions-runner-controller` release, its CRDs and the `actions-runner-system` namespace. If a runner is still busy
+after 10 minutes the play fails without forcing the removal, run the provision again later. Set
+`arc_remove_legacy_runner: false` to keep the legacy runner during a trial period.
+
 Legacy-only settings (`arc_chart_version`, `arc_opencrvs_runner_version`) go in the same file.
 Switching an environment from `scale-set` back to `legacy` does not remove the scale set yet, uninstall it manually
 (`helm uninstall arc-runner-set -n arc-runners`, wait for the runner pods to disappear, then remove the
