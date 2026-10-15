@@ -97,9 +97,29 @@ helm_diff_plugin_version: "v3.15.10"
 # Certificate manager chart version
 cert_manager_version: "v1.21.0"
 
-# Action runner controller chart version
+# Kubernetes self-hosted runner flavour:
+#   legacy    - summerwind actions-runner-controller
+#   scale-set - official gha-runner-scale-set with ephemeral runners
+# Override it per environment in environments/<env>/inventory-vars.yml (passed to ansible as --extra-vars)
+arc_mode: "legacy"
+
+# Legacy action runner controller chart version
+# FIXME: Remove after v2.4 release, when the self-hosted runner scale set is the only supported option
 arc_chart_version: "0.23.7"
 arc_opencrvs_runner_version: "latest"
+
+# gha-runner-scale-set: version of both the controller and the scale set charts, they must match
+arc_scale_set_chart_version: "0.15.0"
+arc_controller_release_name: "arc"
+arc_scale_set_name: "arc-runner-set"
+# Image built by https://github.com/opencrvs/github-opencrvs-self-hosted-runner
+arc_scale_set_runner_image: "ghcr.io/opencrvs/opencrvs-github-ephemeral-runner"
+arc_scale_set_runner_version: "latest"
+# Jobs run one by one per cluster, same as the legacy runner. One idle runner is kept warm.
+arc_scale_set_min_runners: 1
+arc_scale_set_max_runners: 1
+# Runner pod resources, e.g. {requests: {cpu: 500m, memory: 1Gi}}
+arc_scale_set_runner_resources: {}
 
 # Postgres: differencial backup support (pgBackRest) version
 pgbackrest_version: "2.59.0"

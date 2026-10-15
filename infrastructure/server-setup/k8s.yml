@@ -116,9 +116,17 @@
       include_tasks: tasks/k8s/install-helm.yml
     - name: Install cert-manager
       include_tasks: tasks/k8s/cert-manager.yml
+    # FIXME: Remove after v2.4 release, when the self-hosted runner scale set is the only supported option
     - name: Install k8s self-hosted runner
       include_tasks: tasks/k8s/self-hosted-runner.yml
-      when: kube_runner_token is defined and kube_runner_token | trim != ''
+      when:
+        - arc_mode == 'legacy'
+        - kube_runner_token is defined and kube_runner_token | trim != ''
+    - name: Install k8s self-hosted runner (runner scale set)
+      include_tasks: tasks/k8s/self-hosted-runner-scale-set.yml
+      when:
+        - arc_mode == 'scale-set'
+        - kube_runner_token is defined and kube_runner_token | trim != ''
 
 - name: Additional configuration
   become: yes

@@ -1,0 +1,126 @@
+# Kubernetes self-hosted runner based on the official GitHub Actions Runner Controller
+# (gha-runner-scale-set). Runner pods are ephemeral: one pod per job.
+#
+# Replaces the legacy summerwind controller installed by self-hosted-runner.yml.
+# The controller and the scale set charts must always be on the same version.
+- name: Install ARC runner scale set
+  vars:
+    arc_oci_registry: oci://ghcr.io/actions/actions-runner-controller-charts
+    arc_controller_namespace: arc-systems
+    arc_runners_namespace: arc-runners
+    arc_auth_secret_name: arc-github-auth
+    arc_scale_set_labels: >-
+      {{ (['self-hosted', 'k8s', kube_cluster_env]
+          + (kube_self_hosted_runner_additional_labels | default('') | split(',') | map('trim') | reject('equalto', '') | list))
+          | unique | list }}
+  block:
+    # Helm installs CRDs from the chart's crds/ directory only once and never upgrades them.
+    # Server-side apply is required, the CRDs (~3MB) are too large for client-side apply annotations.
+    - name: Apply ARC CRDs of chart version {{ arc_scale_set_chart_version }}
+      ansible.builtin.shell: |
+        set -o pipefail
+        helm show crds {{ arc_oci_registry }}/gha-runner-scale-set-controller \
+          --version {{ arc_scale_set_chart_version }} \
+          | kubectl apply --server-side=true --force-conflicts -f -
+      args:
+        executable: /bin/bash
+      environment:
+        KUBECONFIG: /home/{{ provisioning_user }}/.kube/config
+      changed_when: false
+
+    - name: Deploy ARC controller via Helm
+      kubernetes.core.helm:
+        name: "{{ arc_controller_release_name }}"
+        chart_ref: "{{ arc_oci_registry }}/gha-runner-scale-set-controller"
+        chart_version: "{{ arc_scale_set_chart_version }}"
+        release_namespace: "{{ arc_controller_namespace }}"
+        create_namespace: true
+        wait: true
+
+    - name: Create namespace for runner pods
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ arc_runners_namespace }}"
+
+    - name: Create GitHub authentication secret for the runner scale set
+      no_log: true
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: "{{ arc_auth_secret_name }}"
+            namespace: "{{ arc_runners_namespace }}"
+          type: Opaque
+          data:
+            github_token: "{{ kube_runner_token | b64encode }}"
+
+    # The service account must live in the namespace of the runner pods.
+    # A separate binding is used, the legacy one keeps pointing to actions-runner-system.
+    - name: Create ServiceAccount for opencrvs-runner
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ServiceAccount
+          metadata:
+            name: opencrvs-runner
+            namespace: "{{ arc_runners_namespace }}"
+
+    - name: Grant cluster-admin to CI runner serviceaccount
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          metadata:
+            name: opencrvs-arc-runner-admin
+          subjects:
+            - kind: ServiceAccount
+              name: opencrvs-runner
+              namespace: "{{ arc_runners_namespace }}"
+          roleRef:
+            kind: ClusterRole
+            name: cluster-admin
+            apiGroup: rbac.authorization.k8s.io
+
+    - name: Deploy opencrvs runner scale set via Helm
+      kubernetes.core.helm:
+        name: "{{ arc_scale_set_name }}"
+        chart_ref: "{{ arc_oci_registry }}/gha-runner-scale-set"
+        chart_version: "{{ arc_scale_set_chart_version }}"
+        release_namespace: "{{ arc_runners_namespace }}"
+        values:
+          githubConfigUrl: "https://github.com/{{ repository }}"
+          githubConfigSecret: "{{ arc_auth_secret_name }}"
+          scaleSetLabels: "{{ arc_scale_set_labels }}"
+          minRunners: "{{ arc_scale_set_min_runners | int }}"
+          maxRunners: "{{ arc_scale_set_max_runners | int }}"
+          template:
+            spec:
+              serviceAccountName: opencrvs-runner
+              containers:
+                - name: runner
+                  image: "{{ arc_scale_set_runner_image }}:{{ arc_scale_set_runner_version }}"
+                  imagePullPolicy: Always
+                  command: ["/home/runner/run.sh"]
+                  resources: "{{ arc_scale_set_runner_resources }}"
+
+    - name: Wait for the runner scale set listener
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: "{{ arc_controller_namespace }}"
+        label_selectors:
+          - app.kubernetes.io/component = runner-scale-set-listener
+          - actions.github.com/scale-set-name = {{ arc_scale_set_name }}
+      register: arc_listener
+      until: >-
+        arc_listener.resources | length > 0 and
+        arc_listener.resources | map(attribute='status.phase') | unique | list == ['Running']
+      retries: 30
+      delay: 10
