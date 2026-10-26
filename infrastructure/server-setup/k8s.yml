@@ -117,7 +117,7 @@
     - name: Install cert-manager
       include_tasks: tasks/k8s/cert-manager.yml
     - name: Install Traefik
-      include_tasks: tasks/k8s/traefik.yml
+      include_tasks: tasks/k8s/install-traefik.yml
     - name: Install k8s self-hosted runner (runner scale set)
       include_tasks: tasks/k8s/self-hosted-runner-scale-set.yml
       when: kube_runner_token is defined and kube_runner_token | trim != ''
