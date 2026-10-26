@@ -117,12 +117,12 @@ jobs:
         - name: Checking ${{ matrix.job-name }} job status
           run: |
             while true; do
-              kubectl wait --for=condition=ready pod -ljob-name=${{ matrix.job-name }} --timeout=300s -n ${namespace} && \
+              kubectl wait --for=condition=ready pod -ljob-name=${{ matrix.job-name }} --timeout=60s -n ${namespace} && \
               kubectl logs job/${{ matrix.job-name }} --all-containers -f -n ${namespace} && \
               touch /tmp/logs_stramed-${namespace}-${{ matrix.job-name }}.txt || break; 
               sleep 1; done &
             echo "---------------------- Waiting for job completion ----------------------"
-            kubectl wait --for=condition=complete job/${{ matrix.job-name }} -n ${namespace} --timeout=600s; status=$? || true
+            kubectl wait --for=condition=complete job/${{ matrix.job-name }} -n ${namespace} --timeout=60s; status=$? || true
             [ $status -ne 0 ] && kubectl get pods -n ${namespace} --show-labels && kubectl describe pod -ljob-name=${job_name} -n ${namespace};
             [ ! -f /tmp/logs_stramed-${namespace}-${{ matrix.job-name }}.txt ] && kubectl logs job/${{ matrix.job-name }} --all-containers -n ${namespace} || \
               rm -vf /tmp/logs_stramed-${namespace}-${{ matrix.job-name }}.txt
