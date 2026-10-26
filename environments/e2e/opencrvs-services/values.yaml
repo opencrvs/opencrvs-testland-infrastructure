@@ -30,7 +30,7 @@ elasticsearch:
   auth_mode: auto
   host: elasticsearch.opencrvs-deps-e2e.svc.cluster.local
 
-minio:
+s3:
   auth_mode: use_secret
   host: minio-0.minio.opencrvs-deps-e2e.svc.cluster.local
 
