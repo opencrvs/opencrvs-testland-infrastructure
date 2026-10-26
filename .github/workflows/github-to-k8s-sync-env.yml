@@ -54,7 +54,31 @@ jobs:
       - name: "Env name: ${{ needs.get-restore-env-name.outputs.restore_env_name }} and mode ${{ vars.BACKUP_ENVIRONMENT_MODE }}"
         run: |
           echo "Determined restore environment mode: ${{ vars.BACKUP_ENVIRONMENT_MODE }}"
-
+  migrate-secrets:
+    name: Migrate secrets to new names
+    runs-on: ubuntu-26.04
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Migrate secrets to new names
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          # Secret values can't be read with gh, so take them from the job context.
+          # Lowercase names match legacy_type, so ${!legacy_type} picks the right JSON.
+          secret: ${{ toJSON(secrets) }}
+          variable: ${{ toJSON(vars) }}
+        run: |
+          migrate() {
+            scope=$1; shift
+            yq ".$scope[] | [.legacy_name, .name, .legacy_type, (.type // .legacy_type)] | join(\" \")" \
+              .github/TEMPLATES/secret-migration.yaml |
+            while read -r legacy_name name legacy_type type; do
+              legacy_type=${legacy_type,,}; type=${type,,}
+              value=$(jq -er --arg n "$legacy_name" '.[$n]' <<< "${!legacy_type}") || continue
+              printf %s "$value" | gh "$type" set "$name" "$@"
+            done
+          }
+          migrate repository
+          migrate environment --env "${{ inputs.environment }}"
   get-restore-encryption-key:
     needs: get-restore-env-name
     if: needs.get-restore-env-name.outputs.restore_env_name
@@ -147,26 +171,6 @@ jobs:
       - ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@v7
-      - name: Migrate secrets to new names
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          # Secret values can't be read with gh, so take them from the job context.
-          # Lowercase names match legacy_type, so ${!legacy_type} picks the right JSON.
-          secret: ${{ toJSON(secrets) }}
-          variable: ${{ toJSON(vars) }}
-        run: |
-          migrate() {
-            scope=$1; shift
-            yq ".$scope[] | [.legacy_name, .name, .legacy_type, (.type // .legacy_type)] | join(\" \")" \
-              .github/TEMPLATES/secret-migration.yaml |
-            while read -r legacy_name name legacy_type type; do
-              legacy_type=${legacy_type,,}; type=${type,,}
-              value=$(jq -er --arg n "$legacy_name" '.[$n]' <<< "${!legacy_type}") || continue
-              printf %s "$value" | gh "$type" set "$name" "$@"
-            done
-          }
-          migrate repository
-          migrate environment --env "${{ inputs.environment }}"
       # Create a temporary file for environment variables
       # to store GitHub Secrets and Variables (base64 encoded)
       # Making those values base64 encoded allows us to avoid further complex escaping issues
