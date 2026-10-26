@@ -21,7 +21,6 @@ hpa:
 
 env:
   APN_SERVICE_URL: "http://apm-server.opencrvs-deps-qa-hotfix.svc.cluster.local:8200"
-  MINIO_BUCKET: ocrvs
 
 influxdb:
   host: influxdb-0.influxdb.opencrvs-deps-qa-hotfix.svc.cluster.local
@@ -30,7 +29,7 @@ elasticsearch:
   auth_mode: auto
   host: elasticsearch.opencrvs-deps-qa-hotfix.svc.cluster.local
 
-minio:
+s3:
   auth_mode: use_secret
   host: minio-0.minio.opencrvs-deps-qa-hotfix.svc.cluster.local
 

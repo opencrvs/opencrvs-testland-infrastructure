@@ -21,7 +21,6 @@ hpa:
   enabled: false
 
 env:
-  MINIO_BUCKET: ocrvs
   OPENCRVS_ENVIRONMENT: migration-production
 
 otel:
@@ -33,7 +32,7 @@ elasticsearch:
   auth_mode: auto
   host: elasticsearch.opencrvs-deps-migration-production.svc.cluster.local
 
-minio:
+s3:
   auth_mode: use_secret
   host: minio-0.minio.opencrvs-deps-migration-production.svc.cluster.local
 
