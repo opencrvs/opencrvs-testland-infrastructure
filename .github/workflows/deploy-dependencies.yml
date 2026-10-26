@@ -16,7 +16,6 @@ on:
           - qa-hotfix
 env:
   DEPENDENCIES_CHART_VERSION: "v2.2.0"
-  TRAEFIK_CHART_VERSION: "41.0.2"
 jobs:
   approve:
     environment: ${{ inputs.environment }}
@@ -59,16 +58,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
-      - name: Install Traefik
-        run: |
-          touch environments/${ENV}/traefik/values.override.yaml
-          kubectl scale deployment traefik --replicas=0 --namespace traefik || true
-          helm upgrade --install traefik oci://ghcr.io/traefik/helm/traefik:${TRAEFIK_CHART_VERSION} \
-            --namespace traefik \
-            --create-namespace \
-            -f environments/${ENV}/traefik/values.yaml \
-            -f environments/${ENV}/traefik/values.override.yaml
-          kubectl scale deployment traefik --replicas=1 --namespace traefik || true
       # FIXME: remove BACKUP_HOST/RESTORE_HOST after v2.2
       # See: https://github.com/opencrvs/opencrvs-core/pull/13502
       - name: Install OpenCRVS dependencies

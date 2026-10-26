@@ -1,0 +1,80 @@
+# Traefik ingress controller.
+#
+# Traefik owns cluster-scoped resources (ClusterRole, IngressClass, CRDs), so it is installed by
+# provisioning and not by the GitHub Actions runner, which must not hold cluster-wide permissions.
+#
+# Values are read from the infrastructure repository checked out on the Ansible control node:
+#   environments/<kube_cluster_env>/traefik/values.yaml           (required, skipped when absent)
+#   environments/<kube_cluster_env>/traefik/values.override.yaml  (optional)
+#
+# Helm never upgrades CRDs from a chart's crds/ directory, the same as before this moved from
+# the deploy-dependencies workflow.
+- name: Install Traefik
+  vars:
+    traefik_namespace: traefik
+    traefik_values_dir: "{{ playbook_dir }}/../../environments/{{ kube_cluster_env }}/traefik"
+  block:
+    - name: Look for Traefik values of the {{ kube_cluster_env }} environment
+      ansible.builtin.stat:
+        path: "{{ traefik_values_dir }}/values.yaml"
+      delegate_to: localhost
+      become: false
+      register: traefik_values_file
+
+    - name: Look for Traefik override values of the {{ kube_cluster_env }} environment
+      ansible.builtin.stat:
+        path: "{{ traefik_values_dir }}/values.override.yaml"
+      delegate_to: localhost
+      become: false
+      register: traefik_override_file
+
+    - name: Skip Traefik, no values found
+      ansible.builtin.debug:
+        msg: "{{ traefik_values_dir }}/values.yaml does not exist, Traefik is not installed"
+      when: not traefik_values_file.stat.exists
+
+    - name: Deploy Traefik
+      when: traefik_values_file.stat.exists
+      vars:
+        # Same merge as `helm -f values.yaml -f values.override.yaml`: maps are merged, lists replaced
+        traefik_values: >-
+          {{ (lookup('ansible.builtin.file', traefik_values_dir ~ '/values.yaml') | from_yaml | default({}, true))
+             | combine(
+                 (lookup('ansible.builtin.file', traefik_values_dir ~ '/values.override.yaml') | from_yaml | default({}, true))
+                 if traefik_override_file.stat.exists else {},
+                 recursive=True) }}
+      block:
+        - name: Check if the Traefik release has changes
+          kubernetes.core.helm: &traefik_release
+            name: traefik
+            chart_ref: oci://ghcr.io/traefik/helm/traefik
+            chart_version: "{{ traefik_chart_version }}"
+            release_namespace: "{{ traefik_namespace }}"
+            create_namespace: true
+            values: "{{ traefik_values }}"
+          check_mode: true
+          register: traefik_release_check
+
+        # Traefik runs with hostNetwork and hostPort: a new pod cannot start while the old one holds the ports
+        - name: Stop running Traefik pod before the upgrade
+          ansible.builtin.command: kubectl scale deployment traefik --replicas=0 --namespace {{ traefik_namespace }}
+          environment:
+            KUBECONFIG: /home/{{ provisioning_user }}/.kube/config
+          register: traefik_scale_down
+          # The deployment does not exist yet on the first install
+          failed_when: false
+          changed_when: traefik_scale_down.rc == 0
+          when: traefik_release_check.changed
+
+        - name: Deploy Traefik via Helm
+          kubernetes.core.helm: *traefik_release
+
+      always:
+        - name: Start Traefik pod
+          ansible.builtin.command: kubectl scale deployment traefik --replicas=1 --namespace {{ traefik_namespace }}
+          environment:
+            KUBECONFIG: /home/{{ provisioning_user }}/.kube/config
+          register: traefik_scale_up
+          failed_when: false
+          changed_when: traefik_scale_up.rc == 0
+          when: (traefik_release_check | default({})).changed | default(false)

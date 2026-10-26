@@ -97,6 +97,10 @@ helm_diff_plugin_version: "v3.15.10"
 # Certificate manager chart version
 cert_manager_version: "v1.21.0"
 
+# Traefik ingress controller chart version (OCI chart on ghcr.io)
+# Values are read from environments/<env>/traefik/values.yaml
+traefik_chart_version: "41.0.2"
+
 # Kubernetes self-hosted runner (official gha-runner-scale-set with ephemeral runners)
 # Override per environment in environments/<env>/inventory-vars.yml (passed to ansible as --extra-vars)
 # Version of both the controller and the scale set charts, they must match
