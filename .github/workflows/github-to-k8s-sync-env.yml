@@ -70,7 +70,7 @@ jobs:
         run: |
           migrate() {
             scope=$1; shift
-            yq ".$scope[] | [.legacy_name, .name, .legacy_type, (.type // .legacy_type)] | join(\" \")" \
+            yq ".$scope[] | .legacy_name + \" \" + .name + \" \" + .legacy_type + \" \" + (.type // .legacy_type)" \
               .github/TEMPLATES/secret-migration.yaml |
             while read -r legacy_name name legacy_type type; do
               legacy_type=${legacy_type,,}; type=${type,,}
