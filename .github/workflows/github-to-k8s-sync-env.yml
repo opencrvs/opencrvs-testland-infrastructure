@@ -64,7 +64,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           # Secret values can't be read with gh, so take them from the job context.
-          # Lowercase names match legacy_type, so ${!legacy_type} picks the right JSON.
+          # Lowercase names match legacy_type, so $ENV[legacy_type] picks the right JSON.
           secret: ${{ toJSON(secrets) }}
           variable: ${{ toJSON(vars) }}
         run: |
@@ -74,8 +74,15 @@ jobs:
               .github/TEMPLATES/secret-migration.yaml |
             while read -r legacy_name name legacy_type type; do
               legacy_type=${legacy_type,,}; type=${type,,}
-              value=$(jq -er --arg n "$legacy_name" '.[$n]' <<< "${!legacy_type}") || continue
+              echo "🔧 [$scope] $legacy_type $legacy_name -> $type $name"
+              if gh "$type" list "$@" --json name -q '.[].name' | grep -qx "$name"; then
+                echo "ℹ️  $type $name already exists, skipping"; continue
+              fi
+              value=$(jq -nre --arg t "$legacy_type" --arg n "$legacy_name" '$ENV[$t] | fromjson | .[$n]') || {
+                echo "⚠️  $legacy_type $legacy_name not found, skipping"; continue
+              }
               printf %s "$value" | gh "$type" set "$name" "$@"
+              echo "✅ $type $name created"
             done
           }
           migrate repository
@@ -156,6 +163,7 @@ jobs:
       BACKUP_SERVER_USER: ${{ secrets.BACKUP_SERVER_USER }}
   sync-env:
     needs:
+      - migrate-secrets
       - get-restore-env-name
       - get-restore-ssh-key
       - get-restore-host
