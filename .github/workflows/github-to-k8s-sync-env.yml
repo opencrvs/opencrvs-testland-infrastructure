@@ -152,6 +152,7 @@ jobs:
       BACKUP_SERVER_USER: ${{ secrets.BACKUP_SERVER_USER }}
   sync-env:
     needs:
+      - migrate-secrets
       - get-restore-env-name
       - get-restore-ssh-key
       - get-restore-host
