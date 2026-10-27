@@ -16,11 +16,11 @@ on:
       core-image-tag:
         description: "Tag of the core image"
         required: true
-        default: "v1.9.15"
+        default: "v1.9.22"
       countryconfig-image-tag:
         description: "Tag of the countryconfig image"
         required: true
-        default: "v1.9.15"
+        default: "v1.9.22"
       data-seed-enabled:
         description: "Data seeding during deployment"
         required: false
@@ -36,7 +36,7 @@ on:
 
 env:
   # Assuming chart version matches core image tag
-  OPENCRVS_CHART_VERSION: "1.9.15"
+  OPENCRVS_CHART_VERSION: "v1.9.22"
 jobs:
   approve:
     environment: ${{ inputs.environment }}
