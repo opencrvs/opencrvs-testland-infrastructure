@@ -258,7 +258,7 @@ jobs:
           path: packages/testland/playwright-report/
           retention-days: 30
 
-  # Summarises tests that needed a retry; must never turn a green run into a failure notification.
+  # continue-on-error: a summary failure must not flip a green run into a failure notification.
   retry-report:
     name: Retry report
     needs: test
