@@ -240,6 +240,16 @@ jobs:
           summary-report: true
           test-report: true
         if: "!cancelled() && steps.ctrf_check.outputs.ctrf == 'true'"
+      # Written by core's packages/testland/e2e/retry-reporter.ts; missing only
+      # if Playwright never finished.
+      - name: Upload retries
+        uses: actions/upload-artifact@v7
+        if: "!cancelled()"
+        with:
+          name: retries-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
+          path: packages/testland/retries/retries.json
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Upload report artifact
         uses: actions/upload-artifact@v7
         if: "!cancelled()"
@@ -248,32 +258,59 @@ jobs:
           path: packages/testland/playwright-report/
           retention-days: 30
 
+  # Summarises tests that needed a retry; must never turn a green run into a failure notification.
+  retry-report:
+    name: Retry report
+    needs: test
+    if: "!cancelled() && needs.test.result != 'skipped'"
+    continue-on-error: true
+    runs-on: ubuntu-24.04
+    outputs:
+      slack: ${{ steps.summarise.outputs.slack }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: "opencrvs/opencrvs-core"
+          ref: ${{ github.event.client_payload.core-branch || inputs.core-branch }}
+          sparse-checkout: packages/testland/e2e
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: retries-shard-*
+          path: retries
+      - name: Summarise retried tests
+        id: summarise
+        run: node packages/testland/e2e/summarise-retries.mjs retries
+
   # Cancelled runs (superseded by a newer trigger) notify nobody: failure()
   # and success() are both false for them.
   notify-slack:
     name: Notify Slack on Failure
     runs-on: ubuntu-latest
-    needs: [cache-node-js, reset-data, data-seed, deploy, test]
+    needs: [cache-node-js, reset-data, data-seed, deploy, test, retry-report]
     if: failure()
     steps:
       - name: Send Slack notification
         uses: slackapi/slack-github-action@v1.26.0
         with:
           channel-id: "C08FCLKER8X"
-          slack-message: "❌ E2E pipeline triggered by ${{ github.event.client_payload.actor || github.actor }} failed. Check the logs at https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}."
+          slack-message: |
+            ❌ E2E pipeline triggered by ${{ github.event.client_payload.actor || github.actor }} failed. Check the logs at https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}.
+            ${{ needs.retry-report.outputs.slack }}
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
   notify-slack-success:
     name: Notify Slack on success
     runs-on: ubuntu-latest
-    needs: [cache-node-js, reset-data, data-seed, deploy, test]
+    needs: [cache-node-js, reset-data, data-seed, deploy, test, retry-report]
     if: success()
     steps:
       - name: Send Slack notification
         uses: slackapi/slack-github-action@v1.26.0
         with:
           channel-id: "C08FCLKER8X"
-          slack-message: "✅ E2E pipeline finished successfully, triggered by ${{ github.event.client_payload.actor || github.actor }}. Check the logs at https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}."
+          slack-message: |
+            ✅ E2E pipeline finished successfully, triggered by ${{ github.event.client_payload.actor || github.actor }}. Check the logs at https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}.
+            ${{ needs.retry-report.outputs.slack }}
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
