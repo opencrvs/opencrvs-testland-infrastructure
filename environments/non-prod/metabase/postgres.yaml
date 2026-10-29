@@ -34,6 +34,9 @@ image:
   name: postgres
   tag: '16-alpine'
 
+node_selector:
+  role: data2
+
 resources:
   requests:
     memory: '512Mi'
