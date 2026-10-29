@@ -29,10 +29,11 @@ jobs:
       - name: Print Entire Event Payload
         run: |
           echo "${{ toJson(github.event) }}"
-  reset-data:
+  cleanup-data:
     uses: ./.github/workflows/clear-all-data.yml
     with:
       environment: "e2e"
+      data-cleanup-only: true
     secrets: inherit
 
   cache-node-js:
@@ -104,19 +105,11 @@ jobs:
           max_attempts: 3
           command: cd packages/testland && npx playwright install --with-deps
 
-  data-seed:
-    uses: ./.github/workflows/seed-data.yml
-    if: "!cancelled()"
-    needs: reset-data
-    with:
-      environment: "e2e"
-    secrets: inherit
-
   deploy:
     uses: ./.github/workflows/deploy-opencrvs.yml
     if: "!cancelled()"
     needs:
-      - reset-data
+      - cleanup-data
       - data-seed
     with:
       core-image-tag: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }}
@@ -124,9 +117,16 @@ jobs:
       data-seed-enabled: true
     secrets: inherit
 
+  data-seed:
+    uses: ./.github/workflows/seed-data.yml
+    if: "!cancelled() && needs.deploy.result == 'success'"
+    needs: cleanup-data
+    with:
+      environment: "e2e"
+    secrets: inherit
 
   deploy-mosip:
-    if: "!cancelled()"
+    if: "!cancelled() && needs.deploy.result == 'success'"
     needs:
       - deploy
     uses: ./.github/workflows/deploy-mosip.yml
