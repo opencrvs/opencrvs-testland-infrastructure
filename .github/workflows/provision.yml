@@ -1,6 +1,9 @@
 name: 01. Provision Infrastructure
 run-name: "Provision ${{ inputs.environment }} (tag: ${{ inputs.tags }})"
 on:
+  pull_request:
+    branches:
+      - "*"
   workflow_dispatch:
     inputs:
       environment:
