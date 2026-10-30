@@ -110,7 +110,6 @@ jobs:
     if: "!cancelled()"
     needs:
       - cleanup-data
-      - data-seed
     with:
       core-image-tag: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }}
       environment: "e2e"
@@ -120,7 +119,7 @@ jobs:
   data-seed:
     uses: ./.github/workflows/seed-data.yml
     if: "!cancelled() && needs.deploy.result == 'success'"
-    needs: cleanup-data
+    needs: deploy
     with:
       environment: "e2e"
     secrets: inherit
@@ -136,8 +135,8 @@ jobs:
     secrets: inherit
 
   test:
-    needs: [debug, deploy, deploy-mosip, cache-node-js]
-    if: "!cancelled() && needs.deploy.result == 'success'"
+    needs: [debug, deploy, data-seed, deploy-mosip, cache-node-js]
+    if: "!cancelled() && needs.deploy.result == 'success' && needs.data-seed.result == 'success'"
     runs-on: ubuntu-26.04
     environment: "e2e"
     strategy:
@@ -286,7 +285,7 @@ jobs:
   notify-slack:
     name: Notify Slack on Failure
     runs-on: ubuntu-latest
-    needs: [cache-node-js, reset-data, data-seed, deploy, test, retry-report]
+    needs: [cache-node-js, cleanup-data, data-seed, deploy, test, retry-report]
     if: failure()
     steps:
       - name: Send Slack notification
@@ -302,7 +301,7 @@ jobs:
   notify-slack-success:
     name: Notify Slack on success
     runs-on: ubuntu-latest
-    needs: [cache-node-js, reset-data, data-seed, deploy, test, retry-report]
+    needs: [cache-node-js, cleanup-data, data-seed, deploy, test, retry-report]
     if: success()
     steps:
       - name: Send Slack notification
