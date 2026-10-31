@@ -11,6 +11,9 @@ otel:
   deployment_environment: migration-production
   exporter_otlp_endpoint: "http://opentelemetry-collector.opencrvs-deps-qa.svc.cluster.local:4317"
 
+rustfs:
+  host_data_path: /data/migration-staging/minio
+
 countryconfig:
   env:
     OPENID_PROVIDER_CLAIMS: name,family_name,given_name,middle_name,birthdate,address

@@ -17,15 +17,21 @@
 # - countryconfig.image.tag: Countryconfig image tag
 environment_type: non-production
 
+network_policy:
+  ingress_mode: deny
+  egress_mode: deny
+  allowed_namespaces:
+    - opencrvs-deps-migration-staging
+
 hpa:
   enabled: false
 
 env:
-  MINIO_BUCKET: ocrvs
+  S3_BUCKET: ocrvs
   OPENCRVS_ENVIRONMENT: migration-staging
 
 otel:
-  enabled: true
+  enabled: false
   deployment_environment: migration-staging
   exporter_otlp_endpoint: "opentelemetry-collector.opencrvs-deps-migration-staging.svc.cluster.local:4317"
 
@@ -35,7 +41,7 @@ elasticsearch:
 
 s3:
   auth_mode: use_secret
-  host: minio-0.minio.opencrvs-deps-migration-staging.svc.cluster.local
+  host: rustfs-0.rustfs.opencrvs-deps-migration-staging.svc.cluster.local
 
 redis:
   auth_mode: use_secret
@@ -48,8 +54,7 @@ postgres:
 platform:
   imagePullSecrets:
     # Default value for credentials created while yarn environment:init
-    - name: dockerhub-credentials
-
+    - name: registry-credentials
 
 auth:
   env:
