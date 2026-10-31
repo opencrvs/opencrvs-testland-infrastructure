@@ -9,7 +9,7 @@ monitoring:
 elasticsearch:
   host_data_path: /data/migration-staging/elasticsearch
 
-minio:
+rustfs:
   host_data_path: /data/migration-staging/minio
 
 mongodb:
@@ -24,4 +24,4 @@ influxdb:
 # FIXME: Keep this value till first official v2.1.0 release.
 utilities:
   image:
-    tag: 35b1e0f
+    tag: v2.1.2
