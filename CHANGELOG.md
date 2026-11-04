@@ -17,6 +17,7 @@
 - Backup rotation on the backup server no longer runs as root. The script is installed root-owned as `/usr/local/sbin/opencrvs-rotate-backups.sh`, the cron job runs as `backup`, and directory names are matched strictly and passed to `rm` NUL-delimited.
 - Restore, Deploy OpenCRVS, Validate pre/post deploy, Reset 2FA and Start a new release workflows check their text inputs (backup date, image tags, stage, user name, release version and target branch) against the expected format and pass them to scripts as environment variables. The backup date check in Restore now reads the `backup-date` input, and the `reset-2fa.yml` playbook checks the user name as well
 - Pre-deploy validation in the Deploy OpenCRVS workflow now starts after the approval step
+- Two-factor authentication set-up is now done by sshd (`ForceCommand`, `/usr/local/sbin/opencrvs-require-2fa.sh`) and not by `.profile`. A user that has not set it up yet can only open an interactive login, where the set-up starts. Commands, `scp`, `sftp` and `ssh -T` ask the user to log in interactively first. The provisioning user, the backup user and users with `two_factor: false` are not affected. A script that logs in as any other user must use a user with `two_factor: false`
 
 ## 2.1.0 Release
 
