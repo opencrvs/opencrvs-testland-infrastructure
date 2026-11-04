@@ -96,19 +96,15 @@
   when: item.state == 'present'
   with_items: '{{ users }}'
 
-- name: Ensure 2FA setup lines are present in .profile for each user
+# Clean up after previous versions that set up 2FA from .profile. sshd does it now (see "Require 2FA set-up" below)
+- name: Remove 2FA setup lines from .profile of each user
   blockinfile:
     path: '/home/{{ item.name }}/.profile'
-    block: |
-      if [ ! -f "$HOME/.google_authenticator" ]; then
-          echo "You must set up two-factor authentication."
-          (trap 'echo "Ctrl+C detected."' INT; google-authenticator) || exit 1
-      fi
-    create: yes
-    owner: '{{ item.name }}'
-    group: '{{ item.name }}'
-    mode: '0644'
-  when: item.state == 'present' and (item.two_factor | default(true)) != false
+    state: absent
+  register: profile_cleanup
+  # blockinfile fails (rc 257) when the file does not exist, and then there is nothing to remove
+  failed_when: profile_cleanup.failed and profile_cleanup.rc | default(0) != 257
+  when: item.state == 'present'
   with_items: '{{ users }}'
 
 - name: 'Install libpam-google-authenticator'
@@ -277,6 +273,36 @@
     owner: root
     group: root
     mode: '0755'
+
+- name: Install the script that requires 2FA set-up
+  ansible.builtin.copy:
+    src: ./files/require-2fa.sh
+    dest: '{{ require_2fa_script_path }}'
+    owner: root
+    group: root
+    mode: '0755'
+
+# PAM lets users without a 2FA secret pass (nullok). This makes them set it up before sshd runs any command for them.
+# Users that log in with an SSH key only are not checked: the provisioning user, the backup user (pgBackRest and
+# disk encryption key download) and users with "two_factor: false".
+- name: Require 2FA set-up before any SSH session of a user
+  ansible.builtin.blockinfile:
+    path: /etc/ssh/sshd_config
+    block: |
+      Match User {{ match_users }}
+        ForceCommand {{ require_2fa_script_path }}
+      Match all
+    marker: '# {mark} ANSIBLE MANAGED BLOCK FOR 2FA SET-UP'
+    validate: /usr/sbin/sshd -t -f %s
+  vars:
+    key_only_users: >-
+      {{
+        [ansible_user, backup_server_user]
+        + users | selectattr('two_factor', 'defined') | selectattr('two_factor', 'equalto', false) | map(attribute='name') | list
+      }}
+    # All users except key_only_users, for example: *,!provision,!backup
+    match_users: "{{ (['*'] + key_only_users | map('regex_replace', '^', '!') | list) | join(',') }}"
+  become: yes
 
 - name: Check SSH config syntax
   ansible.builtin.command:
