@@ -15,6 +15,8 @@ backup_server_user: 'backup'
 # Home directory for user on backup server
 backup_server_user_home: '/home/backup'
 rotate_backups_script_path: /usr/local/sbin/opencrvs-rotate-backups.sh
+# sshd runs this script for every session of a user that must use two-factor authentication
+require_2fa_script_path: /usr/local/sbin/opencrvs-require-2fa.sh
 # Amount of backups to keep (one week)
 amount_of_backups_to_keep: 7
 
