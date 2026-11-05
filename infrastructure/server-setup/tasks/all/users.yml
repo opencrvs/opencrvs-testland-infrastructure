@@ -15,7 +15,7 @@
   loop_control:
     label: "{{ item.name }}"
 
-# Users without SSH keys in the inventory have no access either
+# Users without SSH keys in the inventory have no access either. The k8s tasks do not create kube config for them
 - name: Remove SSH keys and kube config of removed users and users without SSH keys
   ansible.builtin.file:
     path: /home/{{ item.0.name }}/{{ item.1 }}
