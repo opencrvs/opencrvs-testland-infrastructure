@@ -97,28 +97,26 @@ all:
       - name: alise
         ssh_keys:
           - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINgMcsSBwTE0EbMDRSF1T4vJDcN/5HAjKGbi2DqV7g/Q vmudryi@opencrvs.org
-          - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDH0zUM1kXnZJPZuBS7h4bHLyeKCEYYqGND54gD/3mg2eHPH0dCvv0x61I5Jh6E+fX6DEAiFKSlaKAsGYn5g+rRrRyPYm0JgSHxm6+Ppuv5w/IAVoTMo5xiJWH+athU0u3OKUkPWbDCyqPG+a7eWzgtAiKkAGWdztbKjOMcL1c2G5Nw9zdeUOHBrEchJ4rjhAgchBRSO0xxZ0PRSUFSztQy30XwJIP4gp9nWaQKOSocNUIj9q3aEb2oBcYzVQR4akvpu+F/tRtqQpHX5cm/oOJOtJTRC0JyJdI3P8QcSFS0/hZFq1vVVf6XswWhca5hLd9LBa2F4ev8rDluhXoLT0tg05QnaaHxlwOz8T8KjN5/gabljoiurqKMITu24ekpqY1dbRRQB5VoUaRiRloUn6R9RI+46leTzRlt/aFUVYtLpuOp4XysuVmYHQgVmQGC/i0pzpuExVkxtvRdZO4sk/OYKRM5bxg7pWEnczFNge7dqBuNUHoZTYZ3GCIGjc7uwLs= vmudryi@NB01FIS016
         state: present
         role: operator
         two_factor: false
       - name: bob
-        ssh_keys:
-          - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINgMcsSBwTE0EbMDRSF1T4vJDcN/5HAjKGbi2DqV7g/Q vmudryi@opencrvs.org
+        ssh_keys: []
         state: present
         role: operator
         two_factor: false
       - name: ervin
         ssh_keys:
           - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINgMcsSBwTE0EbMDRSF1T4vJDcN/5HAjKGbi2DqV7g/Q vmudryi@opencrvs.org
-        state: present
+        state: absent
         role: operator
         two_factor: false
-      - name: schrodinger
-        ssh_keys:
-          - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINgMcsSBwTE0EbMDRSF1T4vJDcN/5HAjKGbi2DqV7g/Q vmudryi@opencrvs.org
-        state: present
-        role: operator
-        two_factor: false
+      # - name: schrodinger
+      #   ssh_keys:
+      #     - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINgMcsSBwTE0EbMDRSF1T4vJDcN/5HAjKGbi2DqV7g/Q vmudryi@opencrvs.org
+      #   state: present
+      #   role: operator
+      #   two_factor: false
       - name: cihan
         ssh_keys:
           - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEEtz5M5hYKcUehDiCm84BplV+3t1ex8DPjIsMtQEWGv cihan.m.bebek@gmail.com
