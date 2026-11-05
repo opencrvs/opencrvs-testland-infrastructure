@@ -8,7 +8,7 @@
 
 ### Improvements
 
-- Deploy Dependencies and Deploy OpenCRVS now start with the new `Check private network` workflow. The workflow fails if `DOMAIN`, `KUBE_MASTER_NODE` or `KUBE_API_HOST` is reachable from the public internet. It tests ping and TCP ports 22, 80 and 443 on `DOMAIN`, and ports 22, 80, 443 and 6443 on the two Kubernetes hosts. To skip the check, set the `PRIVATE_NETWORK_REQUIRED` variable of the GitHub environment to `false` [#14225](https://github.com/opencrvs/opencrvs-core/issues/14225)
+- Deploy Dependencies and Deploy OpenCRVS now start with the new `Check private network` workflow. The workflow fails if `DOMAIN`, `KUBE_MASTER_NODE` or `KUBE_API_HOST` is reachable from the public internet. It tests TCP ports 22, 80 and 443 on `DOMAIN`, and ports 22, 80, 443 and 6443 on the two Kubernetes hosts. To skip the check, set the `PRIVATE_NETWORK_REQUIRED` variable of the GitHub environment to `false` [#14225](https://github.com/opencrvs/opencrvs-core/issues/14225)
 - The manual approval of GitHub Actions workflows is now required unless the `APPROVAL_REQUIRED` environment variable is explicitly set to `false`, and the user who started a workflow can no longer approve it. The `GH_APPROVERS` variable must list at least one user other than the person starting the workflow (at least 3 for `Clear all environment data`, so 4 users in total)
 
 ### Bug fixes

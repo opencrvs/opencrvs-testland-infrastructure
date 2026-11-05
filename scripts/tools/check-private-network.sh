@@ -4,11 +4,12 @@
 #
 # Usage: check-private-network.sh [DOMAIN [KUBE_MASTER_NODE [KUBE_API_HOST]]]
 # An empty argument falls back to the environment variable of the same name, a host that stays empty is skipped.
-# Every host is checked with ping and on TCP ports 22, 80, 443 (DOMAIN) or 22, 80, 443, 6443 (Kubernetes hosts).
+# Every host is checked on TCP ports 22, 80, 443 (DOMAIN) or 22, 80, 443, 6443 (Kubernetes hosts).
 # PRIVATE_NETWORK_REQUIRED=false skips the check. ENVIRONMENT is used in messages.
 #
 # stdout is a Markdown summary (redirect it to $GITHUB_STEP_SUMMARY), stderr is the log.
-# Exits with 1 when a host answers ping or accepts connections on a checked port.
+# Exits with 1 when a host accepts connections on a checked port.
+# ICMP is not checked: GitHub-hosted runners (Azure) cannot send ping to the public internet.
 set -uo pipefail
 
 log() { echo "$@" >&2; }
@@ -20,9 +21,6 @@ if [[ "${PRIVATE_NETWORK_REQUIRED:-}" == "false" ]]; then
   echo "⚠️ Skipped because \`PRIVATE_NETWORK_REQUIRED\` is set to \`false\`. The environment may be exposed to the public internet."
   exit 0
 fi
-
-# The ping -W option is in seconds on Linux and in milliseconds on macOS
-[[ "$(uname -s)" == "Darwin" ]] && PING_WAIT=3000 || PING_WAIT=3
 
 # Succeeds when a TCP connection to host $1, port $2 opens within 5 seconds (macOS has no timeout command)
 tcp_open() {
@@ -64,17 +62,6 @@ for name in DOMAIN KUBE_MASTER_NODE KUBE_API_HOST; do
   address=$(resolve "$host" 2> /dev/null | paste -sd ',' - | sed 's/,/<br>/g')
   [[ -z "$address" ]] && address="⚠️ not resolved"
 
-  if ! command -v ping > /dev/null; then
-    log "::warning::ping is not installed, the ICMP check of $host is skipped"
-    icmp="⚠️ not checked, ping is not installed"
-  elif ping -c 2 -W "$PING_WAIT" "$host" > /dev/null 2>&1; then
-    log "::error::$host answers ping from the public internet"
-    icmp="❌ answers ping"
-    exposed=1
-  else
-    icmp="✅ no answer"
-  fi
-
   ports=""
   ports_ref="${name}_PORTS[@]"
   for port in "${!ports_ref}"; do
@@ -86,7 +73,7 @@ for name in DOMAIN KUBE_MASTER_NODE KUBE_API_HOST; do
       ports="$ports<br>$port ✅ closed"
     fi
   done
-  rows="$rows| \`$name\` | \`$host\` | $address | $icmp | ${ports#<br>} |"$'\n'
+  rows="$rows| \`$name\` | \`$host\` | $address | ${ports#<br>} |"$'\n'
 done
 
 if [[ -z "$rows" ]]; then
@@ -95,7 +82,7 @@ if [[ -z "$rows" ]]; then
 fi
 
 [[ "$exposed" -eq 0 ]] && result="✅ The environment is not reachable from the public internet." || result="❌ The environment is reachable from the public internet."
-printf '## Private network check\n\n%s\n\n| Variable | Host | Address | ICMP check | Port check |\n|----------|------|---------|------------|------------|\n%s' "$result" "$rows"
+printf '## Private network check\n\n%s\n\n| Variable | Host | Address | Port check |\n|----------|------|---------|------------|\n%s' "$result" "$rows"
 
 log "$result"
 if [[ "$exposed" -ne 0 ]]; then
