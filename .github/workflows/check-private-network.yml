@@ -22,6 +22,8 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
       - name: Check that the environment is not reachable from the public internet
         env:
           PRIVATE_NETWORK_REQUIRED: ${{ vars.PRIVATE_NETWORK_REQUIRED }}
@@ -29,82 +31,5 @@ jobs:
           KUBE_MASTER_NODE: ${{ vars.KUBE_MASTER_NODE }}
           KUBE_API_HOST: ${{ vars.KUBE_API_HOST }}
           ENVIRONMENT: ${{ inputs.environment }}
-        run: |
-          if [[ "$PRIVATE_NETWORK_REQUIRED" == "false" ]]; then
-            echo "::warning::Private network check is skipped because PRIVATE_NETWORK_REQUIRED is set to 'false'. The environment may be exposed to the public internet."
-            {
-              echo "## Private network check"
-              echo
-              echo "⚠️ Skipped because \`PRIVATE_NETWORK_REQUIRED\` is set to \`false\`. The environment may be exposed to the public internet."
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          # This job runs on a GitHub-hosted runner, so it sees the environment like any host on the public internet
-          exposed=0
-          checked=0
-          rows=""
-          for host in $(printf '%s\n' "$DOMAIN" "$KUBE_MASTER_NODE" "$KUBE_API_HOST" | tr ',' '\n' | tr -d ' ' | sed '/^$/d' | sort -u); do
-            if [[ ! "$host" =~ ^[A-Za-z0-9.:-]+$ ]]; then
-              echo "::error::Unexpected characters in host '$host'"
-              exit 1
-            fi
-            checked=$((checked + 1))
-            echo "Checking $host from the public internet"
-            if getent hosts "$host" > /dev/null; then
-              echo "  resolves to: $(getent hosts "$host" | awk '{print $1}' | paste -sd ' ' -)"
-            else
-              echo "  does not resolve from the public internet"
-            fi
-
-            if ping -c 2 -W 3 "$host" > /dev/null 2>&1; then
-              echo "::error::$host answers ping from the public internet"
-              icmp="❌ answers ping"
-              exposed=1
-            else
-              icmp="✅ no answer"
-            fi
-
-            # ICMP is often filtered, so check the SSH, HTTP, HTTPS and Kubernetes API ports as well
-            ports=""
-            for port in 22 80 443 6443; do
-              if timeout 5 bash -c 'exec 3<>/dev/tcp/$0/$1' "$host" "$port" 2> /dev/null; then
-                echo "::error::$host accepts connections on port $port from the public internet"
-                ports="$ports<br>$port ❌ open"
-                exposed=1
-              else
-                ports="$ports<br>$port ✅ closed"
-              fi
-            done
-            rows="$rows| \`$host\` | $icmp | ${ports#<br>} |"$'\n'
-          done
-
-          if [[ "$checked" -eq 0 ]]; then
-            echo "::error::Nothing to check: the DOMAIN, KUBE_MASTER_NODE and KUBE_API_HOST variables are all empty"
-            exit 1
-          fi
-
-          if [[ "$exposed" -ne 0 ]]; then
-            result="❌ The environment is reachable from the public internet."
-          else
-            result="✅ The environment is not reachable from the public internet."
-          fi
-          {
-            echo "## Private network check"
-            echo
-            echo "$result"
-            echo
-            echo "Checked from a GitHub-hosted runner, like any host on the public internet."
-            echo
-            echo "| Host | ICMP check | Port check |"
-            echo "|------|------------|------------|"
-            printf '%s' "$rows"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          if [[ "$exposed" -ne 0 ]]; then
-            echo "$result"
-            echo "Deploy OpenCRVS to a private network (VPN, private subnet or firewall that only allows trusted addresses)."
-            echo "If your country intentionally exposes the environment, set the PRIVATE_NETWORK_REQUIRED variable of the '$ENVIRONMENT' GitHub environment to 'false'."
-            exit 1
-          fi
-          echo "$result"
+        # The script prints the Markdown summary to stdout and its log to stderr
+        run: bash scripts/tools/check-private-network.sh >> "$GITHUB_STEP_SUMMARY"
