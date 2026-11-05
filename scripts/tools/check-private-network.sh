@@ -37,6 +37,15 @@ tcp_open() {
   return "$status"
 }
 
+# Prints the IP addresses of host $1, nothing when it does not resolve (macOS has no getent)
+resolve() {
+  if command -v getent > /dev/null; then
+    getent ahosts "$1" | awk '{print $1}' | sort -u
+  else
+    dscacheutil -q host -a name "$1" | awk '/ip(v6)?_address/ {print $2}' | sort -u
+  fi
+}
+
 DOMAIN="${1:-${DOMAIN:-}}"
 KUBE_MASTER_NODE="${2:-${KUBE_MASTER_NODE:-}}"
 KUBE_API_HOST="${3:-${KUBE_API_HOST:-}}"
@@ -52,6 +61,8 @@ for name in DOMAIN KUBE_MASTER_NODE KUBE_API_HOST; do
   [[ -z "$host" ]] && continue
   [[ "$host" =~ ^[A-Za-z0-9.:-]+$ ]] || { log "::error::Unexpected characters in $name: '$host'"; exit 1; }
   log "Checking $name $host from the public internet"
+  address=$(resolve "$host" 2> /dev/null | paste -sd ',' - | sed 's/,/<br>/g')
+  [[ -z "$address" ]] && address="⚠️ not resolved"
 
   if ! command -v ping > /dev/null; then
     log "::warning::ping is not installed, the ICMP check of $host is skipped"
@@ -75,7 +86,7 @@ for name in DOMAIN KUBE_MASTER_NODE KUBE_API_HOST; do
       ports="$ports<br>$port ✅ closed"
     fi
   done
-  rows="$rows| \`$name\` | \`$host\` | $icmp | ${ports#<br>} |"$'\n'
+  rows="$rows| \`$name\` | \`$host\` | $address | $icmp | ${ports#<br>} |"$'\n'
 done
 
 if [[ -z "$rows" ]]; then
@@ -84,7 +95,7 @@ if [[ -z "$rows" ]]; then
 fi
 
 [[ "$exposed" -eq 0 ]] && result="✅ The environment is not reachable from the public internet." || result="❌ The environment is reachable from the public internet."
-printf '## Private network check\n\n%s\n\n| Variable | Host | ICMP check | Port check |\n|----------|------|------------|------------|\n%s' "$result" "$rows"
+printf '## Private network check\n\n%s\n\n| Variable | Host | Address | ICMP check | Port check |\n|----------|------|---------|------------|------------|\n%s' "$result" "$rows"
 
 log "$result"
 if [[ "$exposed" -ne 0 ]]; then
