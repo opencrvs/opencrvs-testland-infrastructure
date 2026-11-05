@@ -75,7 +75,7 @@ for name in DOMAIN KUBE_MASTER_NODE KUBE_API_HOST; do
       ports="$ports<br>$port ✅ closed"
     fi
   done
-  rows="$rows| \`$host\`<br>$name | $icmp | ${ports#<br>} |"$'\n'
+  rows="$rows| \`$name\` | \`$host\` | $icmp | ${ports#<br>} |"$'\n'
 done
 
 if [[ -z "$rows" ]]; then
@@ -84,7 +84,7 @@ if [[ -z "$rows" ]]; then
 fi
 
 [[ "$exposed" -eq 0 ]] && result="✅ The environment is not reachable from the public internet." || result="❌ The environment is reachable from the public internet."
-printf '## Private network check\n\n%s\n\n| Host | ICMP check | Port check |\n|------|------------|------------|\n%s' "$result" "$rows"
+printf '## Private network check\n\n%s\n\n| Variable | Host | ICMP check | Port check |\n|----------|------|------------|------------|\n%s' "$result" "$rows"
 
 log "$result"
 if [[ "$exposed" -ne 0 ]]; then
