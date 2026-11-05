@@ -13,7 +13,14 @@ on:
 env:
   DEPENDENCIES_CHART_VERSION: "v2.2.0"
 jobs:
+  check-private-network:
+    uses: ./.github/workflows/check-private-network.yml
+    with:
+      environment: ${{ inputs.environment }}
+    secrets: inherit
+
   approve:
+    needs: check-private-network
     environment: ${{ inputs.environment }}
     runs-on: ubuntu-26.04
     timeout-minutes: 60
