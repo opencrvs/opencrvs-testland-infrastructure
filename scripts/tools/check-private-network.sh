@@ -4,7 +4,7 @@
 #
 # Usage: check-private-network.sh [DOMAIN [KUBE_MASTER_NODE [KUBE_API_HOST]]]
 # An empty argument falls back to the environment variable of the same name, a host that stays empty is skipped.
-# Every host is checked on TCP ports 22, 80, 443 (DOMAIN) or 22, 80, 443, 6443 (Kubernetes hosts).
+# Every host is checked on TCP ports: DOMAIN on web and SSH ports, the Kubernetes hosts also on the cluster ports.
 # PRIVATE_NETWORK_REQUIRED=false skips the check. ENVIRONMENT is used in messages.
 #
 # stdout is a Markdown summary (redirect it to $GITHUB_STEP_SUMMARY), stderr is the log.
@@ -22,12 +22,12 @@ if [[ "${PRIVATE_NETWORK_REQUIRED:-}" == "false" ]]; then
   exit 0
 fi
 
-# Succeeds when a TCP connection to host $1, port $2 opens within 5 seconds (macOS has no timeout command)
+# Succeeds when a TCP connection to host $1, port $2 opens within 3 seconds (macOS has no timeout command)
 tcp_open() {
   local pid watcher status
   { (exec 3<> "/dev/tcp/$1/$2") 2> /dev/null; } &
   pid=$!
-  { sleep 5; kill "$pid"; } > /dev/null 2>&1 &
+  { sleep 3; kill "$pid"; } > /dev/null 2>&1 &
   watcher=$!
   { wait "$pid"; } 2> /dev/null
   status=$?
@@ -49,8 +49,10 @@ KUBE_MASTER_NODE="${2:-${KUBE_MASTER_NODE:-}}"
 KUBE_API_HOST="${3:-${KUBE_API_HOST:-}}"
 # TCP ports to check for the host of every variable
 DOMAIN_PORTS=(22 80 443)
-KUBE_MASTER_NODE_PORTS=(22 80 443 6443)
-KUBE_API_HOST_PORTS=(22 80 443 6443)
+# SSH, HTTP, HTTPS, Kubernetes API, etcd client and peer, kubelet, controller manager, scheduler, Calico BGP, Calico Typha
+KUBE_PORTS=(22 80 443 6443 2379 2380 10250 10257 10259 179 5473)
+KUBE_MASTER_NODE_PORTS=("${KUBE_PORTS[@]}")
+KUBE_API_HOST_PORTS=("${KUBE_PORTS[@]}")
 
 exposed=0
 rows=""
