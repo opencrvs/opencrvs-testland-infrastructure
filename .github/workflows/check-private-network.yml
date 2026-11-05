@@ -1,0 +1,35 @@
+name: 11. Check private network
+run-name: "Check that ${{ inputs.environment }} is not reachable from the public internet"
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "development"
+        type: choice
+        options:
+          - ""
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+jobs:
+  check-private-network:
+    # Fails when the environment can be reached from the public internet,
+    # unless the PRIVATE_NETWORK_REQUIRED variable of the GitHub environment is explicitly set to 'false'
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+      - name: Check that the environment is not reachable from the public internet
+        env:
+          PRIVATE_NETWORK_REQUIRED: ${{ vars.PRIVATE_NETWORK_REQUIRED }}
+          DOMAIN: ${{ vars.DOMAIN }}
+          KUBE_MASTER_NODE: ${{ vars.KUBE_MASTER_NODE }}
+          KUBE_API_HOST: ${{ vars.KUBE_API_HOST }}
+          ENVIRONMENT: ${{ inputs.environment }}
+        # The script prints the Markdown summary to stdout and its log to stderr
+        run: bash scripts/tools/check-private-network.sh >> "$GITHUB_STEP_SUMMARY"
