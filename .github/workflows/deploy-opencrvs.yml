@@ -44,15 +44,13 @@ jobs:
     steps:
       - name: Validate inputs
         env:
+          # testland has no countryconfig-image-tag input: core-image-tag drives both images
           CORE_IMAGE_TAG: ${{ inputs.core-image-tag }}
-          COUNTRYCONFIG_IMAGE_TAG: ${{ inputs.countryconfig-image-tag }}
         run: |
-          for tag in "$CORE_IMAGE_TAG" "$COUNTRYCONFIG_IMAGE_TAG"; do
-            if [[ ! "$tag" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$ ]]; then
-              echo "❌ Error: Invalid image tag. Use up to 128 letters, digits, '.', '_' or '-'."
-              exit 1
-            fi
-          done
+          if [[ ! "$CORE_IMAGE_TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$ ]]; then
+            echo "❌ Error: Invalid image tag. Use up to 128 letters, digits, '.', '_' or '-'."
+            exit 1
+          fi
       - name: Waiting for manual approval
         if: ${{ vars.APPROVAL_REQUIRED != 'false' }}
         uses: trstringer/manual-approval@v1
