@@ -28,15 +28,21 @@ on:
           - data-partition
           - decrypt-on-boot
           - system-preparation
+
+permissions:
+  contents: read
+
 jobs:
   approve:
+    permissions:
+      issues: write
     environment: ${{ inputs.environment }}
     runs-on: ubuntu-26.04
     timeout-minutes: 60
     steps:
       - name: Waiting for manual approval
         if: ${{ vars.APPROVAL_REQUIRED != 'false' }}
-        uses: trstringer/manual-approval@v1
+        uses: trstringer/manual-approval@fa642940caf8412403569b28b2db4a1df08a83a3 # v1.13.1
         with:
           secret: ${{ github.TOKEN }}
           approvers: ${{ vars.GH_APPROVERS }}
@@ -68,7 +74,7 @@ jobs:
               else
                 .
               end
-          ' | jq -R )
+          ')
           echo "EXTRA_VARS=$JSON_WITHOUT_EMPTY" >> $GITHUB_OUTPUT
         env:
           repository: ${{ github.repository }}
@@ -94,18 +100,27 @@ jobs:
       - name: checkout repository
         uses: actions/checkout@v7
       - name: Run Ansible Playbook
-        uses: dawidd6/action-ansible-playbook@v9
+        working-directory: ./infrastructure/server-setup
         env:
           ANSIBLE_PERSISTENT_COMMAND_TIMEOUT: 10
           ANSIBLE_SSH_TIMEOUT: 10
           ANSIBLE_SSH_RETRIES: 5
-        with:
-          requirements: galaxy-requirements.yml
-          playbook: playbook.yml
-          directory: ./infrastructure/server-setup
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+          ANSIBLE_FORCE_COLOR: "True"
+          ENVIRONMENT: ${{ inputs.environment }}
+          TAGS: ${{ inputs.tags }}
+          EXTRA_VARS: ${{ steps.ansible-variables.outputs.EXTRA_VARS }}
+        run: |
+          ansible-galaxy collection install -r galaxy-requirements.yml
+
+          args=(--inventory "../../environments/$ENVIRONMENT/inventory.yml")
+          if [ "$TAGS" != "all" ]; then
+            args+=("--tags=$TAGS")
+          fi
+          if [ -f "../../environments/$ENVIRONMENT/inventory-vars.yml" ]; then
+            args+=(--extra-vars "@../../environments/$ENVIRONMENT/inventory-vars.yml")
+          fi
+          args+=(--extra-vars "$EXTRA_VARS")
+
           # Add --verbose to get more output
-          options: |-
-            --inventory ../../environments/${{ inputs.environment }}/inventory.yml
-            ${{ inputs.tags != 'all' && format('--tags={0}', inputs.tags) || '' }}
-            ${{ hashFiles(format('environments/{0}/inventory-vars.yml', inputs.environment)) != '' && format('--extra-vars @../../environments/{0}/inventory-vars.yml', inputs.environment) || '' }}
-            --extra-vars ""${{ steps.ansible-variables.outputs.EXTRA_VARS }}""
+          ansible-playbook playbook.yml "${args[@]}"

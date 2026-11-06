@@ -36,8 +36,13 @@ on:
 env:
   # Assuming chart version matches core image tag
   OPENCRVS_CHART_VERSION: "v2.2.0"
+permissions:
+  contents: read
+
 jobs:
   approve:
+    permissions:
+      issues: write
     environment: ${{ inputs.environment }}
     runs-on: ubuntu-26.04
     timeout-minutes: 60
@@ -53,7 +58,7 @@ jobs:
           fi
       - name: Waiting for manual approval
         if: ${{ vars.APPROVAL_REQUIRED != 'false' }}
-        uses: trstringer/manual-approval@v1
+        uses: trstringer/manual-approval@fa642940caf8412403569b28b2db4a1df08a83a3 # v1.13.1
         with:
           secret: ${{ github.TOKEN }}
           approvers: ${{ vars.GH_APPROVERS }}
