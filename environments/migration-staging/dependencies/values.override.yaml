@@ -9,7 +9,7 @@ monitoring:
 elasticsearch:
   host_data_path: /data/migration-staging/elasticsearch
 
-minio:
+rustfs:
   host_data_path: /data/migration-staging/minio
 
 mongodb:
