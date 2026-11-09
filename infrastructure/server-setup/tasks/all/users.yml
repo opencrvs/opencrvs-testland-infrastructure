@@ -4,6 +4,30 @@
     state: '{{ item.state }}'
   with_items: '{{ users }}'
 
+# A removed user must not leave access behind: a later account with the same name would inherit it
+- name: Remove sudo rules of removed users
+  ansible.builtin.file:
+    path: /etc/sudoers.d/{{ item.name }}
+    state: absent
+  become: yes
+  when: item.state == 'absent'
+  with_items: '{{ users }}'
+  loop_control:
+    label: "{{ item.name }}"
+
+# Users without SSH keys in the inventory have no access either
+- name: Remove SSH keys of removed users and users without SSH keys
+  ansible.builtin.file:
+    path: /home/{{ item.name }}/.ssh
+    state: absent
+  become: yes
+  when: >-
+    item.state == 'absent'
+    or (item.name not in [ansible_user, backup_server_user] and item.ssh_keys | default([]) | length == 0)
+  with_items: '{{ users }}'
+  loop_control:
+    label: "{{ item.name }}"
+
 - name: Grant passwordless sudo to admin users, but prevent usage of 'su'
   ansible.builtin.lineinfile:
     path: /etc/sudoers.d/{{ item.name }}
@@ -18,30 +42,26 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: Grant restricted passwordless sudo to operator users
-  ansible.builtin.copy:
-    dest: /etc/sudoers.d/{{ item.name }}
-    content: "{{ item.name }} ALL=(ALL) NOPASSWD: {{ allowed_cmds | join(', ') }}, !/usr/bin/su"
-    owner: root
-    group: root
-    mode: '0440'
-    validate: 'visudo -cf %s'
+- name: Add operator users to the adm group
+  ansible.builtin.user:
+    name: '{{ item.name }}'
+    groups: adm
+    append: yes
   become: yes
-  vars:
-    allowed_commands:
-      - '/bin/cat'
-      - '/usr/bin/less'
-      - '/usr/bin/tail'
-    allowed_dirs:
-      - '/data/*'
-      - '/var/log/*'
-      - '/opt/opencrvs/*'
-    allowed_cmds: >-
-      {{
-        allowed_commands | product(allowed_dirs)
-        | map('join', ' * ')
-        | list
-      }}
+  when:
+    - item.state == 'present'
+    - item.role == 'operator'
+  with_items: '{{ users }}'
+  loop_control:
+    label: "{{ item.name }}"
+
+# FIXME: Remove after v2.3 release:
+# Sudo rules that earlier versions created for operators must not stay behind
+- name: Remove sudo rules of operator users
+  ansible.builtin.file:
+    path: /etc/sudoers.d/{{ item.name }}
+    state: absent
+  become: yes
   when:
     - item.state == 'present'
     - item.role == 'operator'
@@ -64,14 +84,19 @@
   loop_control:
     label: "{{ item.name }}"
 
+# The keys of a user are exactly the ssh_keys in the inventory, so a removed key loses access
 - name: Set authorized keys for users
   authorized_key:
-    user: '{{ item.0.name }}'
-    key: '{{ item.1 }}'
-  when: item.0.state == 'present'
-  with_subelements:
-    - '{{ users }}'
-    - ssh_keys
+    user: '{{ item.name }}'
+    key: "{{ item.ssh_keys | join('\n') }}"
+    exclusive: true
+  when:
+    - item.state == 'present'
+    - item.name not in [ansible_user, backup_server_user]
+    - item.ssh_keys | default([]) | length > 0
+  with_items: '{{ users }}'
+  loop_control:
+    label: "{{ item.name }}"
 
 - name: Ensure user's shell is bash
   user:
@@ -96,19 +121,16 @@
   when: item.state == 'present'
   with_items: '{{ users }}'
 
-- name: Ensure 2FA setup lines are present in .profile for each user
+# FIXME: v2.4: Remove this task after v2.4 release
+# Clean up after previous versions that set up 2FA from .profile. sshd does it now (see "Require 2FA set-up" below)
+- name: Remove 2FA setup lines from .profile of each user
   blockinfile:
     path: '/home/{{ item.name }}/.profile'
-    block: |
-      if [ ! -f "$HOME/.google_authenticator" ]; then
-          echo "You must set up two-factor authentication."
-          (trap 'echo "Ctrl+C detected."' INT; google-authenticator) || exit 1
-      fi
-    create: yes
-    owner: '{{ item.name }}'
-    group: '{{ item.name }}'
-    mode: '0644'
-  when: item.state == 'present' and (item.two_factor | default(true)) != false
+    state: absent
+  register: profile_cleanup
+  # blockinfile fails (rc 257) when the file does not exist, and then there is nothing to remove
+  failed_when: profile_cleanup.failed and profile_cleanup.rc | default(0) != 257
+  when: item.state == 'present'
   with_items: '{{ users }}'
 
 - name: 'Install libpam-google-authenticator'
@@ -278,17 +300,57 @@
     group: root
     mode: '0755'
 
+- name: Install the script that requires 2FA set-up
+  ansible.builtin.copy:
+    src: ./files/require-2fa.sh
+    dest: '{{ require_2fa_script_path }}'
+    owner: root
+    group: root
+    mode: '0755'
+
+# PAM lets users without a 2FA secret pass (nullok). This makes them set it up before sshd runs any command for them.
+# Users that log in with an SSH key only are not checked:
+# - provisioning and backup user (pgBackRest and
+# - users with "two_factor: false"
+- name: Require 2FA set-up before any SSH session of a user
+  ansible.builtin.template:
+    src: ./templates/sshd-require-2fa.conf.j2
+    dest: /etc/ssh/sshd_config.d/require-2fa.conf
+    owner: root
+    group: root
+    mode: '0644'
+    validate: /usr/sbin/sshd -t -h /etc/ssh/ssh_host_ed25519_key -f %s
+  vars:
+    key_only_users: >-
+      {{
+        [ansible_user, backup_server_user]
+        + users | selectattr('two_factor', 'defined') | selectattr('two_factor', 'equalto', false) | map(attribute='name') | list
+      }}
+  become: yes
+
+# Fail if sshd does not read /etc/ssh/sshd_config.d (no Include in sshd_config), as the 2FA set-up would not be required
+- name: Check that sshd requires 2FA set-up
+  ansible.builtin.command:
+    cmd: /usr/sbin/sshd -T -C user=2fa-check,host=localhost,addr=127.0.0.1
+  register: require_2fa_check
+  changed_when: false
+  failed_when: "'forcecommand ' ~ require_2fa_script_path not in require_2fa_check.stdout"
+  become: yes
+
 - name: Check SSH config syntax
   ansible.builtin.command:
     cmd: sshd -t
   register: check_status
   ignore_errors: yes
 
-- name: Enable logging in to the provisioning user with specified SSH keys
+# When the list is set, it replaces all keys of the provisioning user, so it must include the key that the
+# provisioning itself connects with. Without the list the keys are left as they are
+- name: Enable logging in to the provisioning user with specified SSH keys only
   authorized_key:
     user: '{{ ansible_user }}'
-    key: '{{ item }}'
-  with_items: '{{ additional_keys_for_provisioning_user | default([]) }}'
+    key: "{{ additional_keys_for_provisioning_user | join('\n') }}"
+    exclusive: true
+  when: additional_keys_for_provisioning_user | default([]) | length > 0
 
 - name: Check if SSH service exists
   ansible.builtin.command: systemctl status ssh

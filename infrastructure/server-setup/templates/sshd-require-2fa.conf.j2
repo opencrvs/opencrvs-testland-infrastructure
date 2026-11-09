@@ -1,0 +1,10 @@
+# Managed by Ansible. Users without a 2FA secret must set it up before sshd runs any command for them.
+# sshd uses the first value it finds:
+# - the key-only users get "none"
+# - all other users get the script
+{% for name in key_only_users %}
+Match User {{ name }}
+  ForceCommand none
+{% endfor %}
+Match all
+  ForceCommand {{ require_2fa_script_path }}

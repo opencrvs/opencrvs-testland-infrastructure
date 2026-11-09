@@ -1,0 +1,39 @@
+# Read-only Kubernetes role for users with the `operator` role (see add-k8s-user.sh).
+#
+# It is the built-in "view" role (no secrets, no pods/exec, attach or port-forward, no RBAC) plus a few
+# cluster-scoped read rules. Both parts are aggregated, so the role follows what Kubernetes adds to "view"
+# in future versions. The rules of an aggregated role are filled in by Kubernetes, so none are set here.
+- name: Create extra read rules for the operator role
+  kubernetes.core.k8s:
+    kubeconfig: /etc/kubernetes/admin.conf
+    state: present
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      metadata:
+        name: opencrvs-operator-extra
+        labels:
+          opencrvs.org/aggregate-to-operator: "true"
+      rules:
+        - apiGroups: [""]
+          resources: ["nodes", "persistentvolumes"]
+          verbs: ["get", "list", "watch"]
+        - apiGroups: ["storage.k8s.io"]
+          resources: ["storageclasses"]
+          verbs: ["get", "list", "watch"]
+
+- name: Create the operator role
+  kubernetes.core.k8s:
+    kubeconfig: /etc/kubernetes/admin.conf
+    state: present
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      metadata:
+        name: opencrvs-operator
+      aggregationRule:
+        clusterRoleSelectors:
+          - matchLabels:
+              rbac.authorization.k8s.io/aggregate-to-view: "true"
+          - matchLabels:
+              opencrvs.org/aggregate-to-operator: "true"

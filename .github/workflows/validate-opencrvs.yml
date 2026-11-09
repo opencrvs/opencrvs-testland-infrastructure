@@ -37,6 +37,9 @@ on:
 env:
   # Assuming chart version matches core image tag
   OPENCRVS_CHART_VERSION: "v2.1.0"
+permissions:
+  contents: read
+
 jobs:
   validate:
     name: "Validate ${{ inputs.stage }}"
