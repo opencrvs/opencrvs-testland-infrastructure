@@ -14,7 +14,6 @@ on:
           - migration-staging
           - qa
           - qa-hotfix
-          - perftest
       data-cleanup-only:
         description: 'Run only the data-cleanup job'
         type: boolean
