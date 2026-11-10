@@ -12,7 +12,7 @@ env:
   APN_ENVIRONMENT: e2e
 
 s3:
-  public_endpoint: minio.e2e.opencrvs.dev
+  public_endpoint: https://minio.e2e.opencrvs.dev
 
 otel:
   enabled: true
