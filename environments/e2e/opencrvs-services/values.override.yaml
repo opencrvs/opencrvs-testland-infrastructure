@@ -11,6 +11,9 @@ env:
   APN_SERVICE_URL: apm-server.opencrvs-deps-qa.svc.cluster.local
   APN_ENVIRONMENT: e2e
 
+s3:
+  public_endpoint: minio.e2e.opencrvs.dev
+
 otel:
   enabled: true
   deployment_environment: e2e
