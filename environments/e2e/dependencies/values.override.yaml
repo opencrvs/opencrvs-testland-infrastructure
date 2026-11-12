@@ -9,7 +9,7 @@ monitoring:
 elasticsearch:
   host_data_path: /data/e2e/elasticsearch
 
-minio:
+rustfs:
   host_data_path: /data/e2e/minio
 
 mongodb:
@@ -21,7 +21,6 @@ postgres:
 influxdb:
   host_data_path: /data/e2e/influxdb
 
-# FIXME: Keep this value till first official v2.1.0 release.
 utilities:
   image:
-    tag: 35b1e0f
+    tag: v2.1.2

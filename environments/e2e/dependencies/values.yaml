@@ -18,7 +18,7 @@ storage_type: host_path
 node_selector:
   role: data1
 
-minio:
+rustfs:
   use_default_credentials: false
 
 elasticsearch:
