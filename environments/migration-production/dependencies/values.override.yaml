@@ -18,9 +18,6 @@ mongodb:
 postgres:
   host_data_path: /data/migration-production/postgres
 
-influxdb:
-  host_data_path: /data/migration-production/influxdb
-
 utilities:
   image:
     tag: v2.1.2
