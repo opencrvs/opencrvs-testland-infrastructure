@@ -31,7 +31,7 @@ postgres:
   use_default_credentials: false
 
 redis:
-  auth_mode: acl
+  use_default_credentials: false
 
 monitoring:
   enabled: true
