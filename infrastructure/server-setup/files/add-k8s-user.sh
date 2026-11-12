@@ -10,16 +10,31 @@ KUBE_API_HOST=${KUBE_API_HOST:-"localhost"}
 KUBE_API_PORT=${KUBE_API_PORT:-"6443"}
 ZIP_PASSWORD_PROMPT="Enter zip password (leave empty for no password): "
 ASK_PASSWORD=${ASK_PASSWORD:-yes}
+# Client certificates cannot be revoked, so keep them short-lived. Access is revoked by removing the ClusterRoleBinding
+CERT_DAYS=${CERT_DAYS:-400}
 # Requires: zip, openssl, kubectl
 if [ "$(id -u)" -ne 0 ]; then
   echo "Please run as root (required for access to Kubernetes CA files)."
   exit 1
 fi
-# ====== USERNAME INPUT ======
+# ====== USERNAME AND ROLE INPUT ======
+# Usage: add-k8s-user.sh <username> [admin|operator]
+#   admin    - cluster-admin
+#   operator - read-only: no secrets, no exec/attach/port-forward, no RBAC (the default, least privilege)
 USERNAME="${1:-}"
+ROLE="${2:-operator}"
 if [ -z "$USERNAME" ]; then
   read -rp "Enter username: " USERNAME
   [[ -z "$USERNAME" ]] && echo "Username cannot be empty!" && exit 1
+fi
+# The name ends up in a certificate subject, file paths and YAML
+if ! [[ "$USERNAME" =~ ^[a-z_][a-z0-9_.-]{0,62}$ ]]; then
+  echo "Invalid username: $USERNAME"
+  exit 1
+fi
+if [[ "$ROLE" != "admin" && "$ROLE" != "operator" ]]; then
+  echo "Invalid role: $ROLE (expected admin or operator)"
+  exit 1
 fi
 
 USERDIR="${OUTPUT_BASE}/${USERNAME}"
@@ -35,7 +50,7 @@ ZIP_FILE="${OUTPUT_BASE}/${USERNAME}-config.zip"
 openssl genrsa -out "$USER_KEY" 2048
 openssl req -new -key "$USER_KEY" -out "$USER_CSR" -subj "/CN=${USERNAME}"
 openssl x509 -req -in "$USER_CSR" -CA "$K8S_CA_CERT" -CAkey "$K8S_CA_KEY" -CAcreateserial \
-  -out "$USER_CERT" -days 365
+  -out "$USER_CERT" -days "$CERT_DAYS"
 
 # ====== CLUSTER INFO (using ca.crt and YOUR public IP) ======
 echo "Setting cluster server to https://${KUBE_API_HOST}:${KUBE_API_PORT}"
@@ -65,21 +80,40 @@ users:
     client-key-data: ${KEY_DATA}
 EOF
 
-# ====== RBAC: CLUSTER ADMIN ======
+# ====== RBAC ======
+BINDING_NAME="user-${ROLE}-${USERNAME}"
+if [[ "$ROLE" == "admin" ]]; then
+  ROLE_NAME="cluster-admin"
+  OTHER_ROLE="operator"
+else
+  ROLE_NAME="opencrvs-operator"
+  OTHER_ROLE="admin"
+  # The role is created by the playbook (tasks/k8s/operator-role.yml)
+  if ! kubectl --kubeconfig="$K8S_ADMIN_KUBECONFIG" get clusterrole "$ROLE_NAME" >/dev/null 2>&1; then
+    echo "ClusterRole ${ROLE_NAME} does not exist. Run the playbook with the users tag first."
+    exit 1
+  fi
+fi
+
 cat <<EOF | kubectl --kubeconfig="$K8S_ADMIN_KUBECONFIG" apply -f -
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: user-admin-${USERNAME}
+  name: ${BINDING_NAME}
+  labels:
+    opencrvs.org/user: "${USERNAME}"
 subjects:
 - kind: User
   name: "${USERNAME}"
   apiGroup: rbac.authorization.k8s.io
 roleRef:
   kind: ClusterRole
-  name: cluster-admin
+  name: ${ROLE_NAME}
   apiGroup: rbac.authorization.k8s.io
 EOF
+
+# A user holds the binding of the current role only, so a demoted admin loses cluster-admin
+kubectl --kubeconfig="$K8S_ADMIN_KUBECONFIG" delete clusterrolebinding "user-${OTHER_ROLE}-${USERNAME}" --ignore-not-found
 
 # ====== ZIP ARCHIVE ======
 echo

@@ -38,6 +38,10 @@ on:
         default: develop
         description: 'Branch the release merges back into. Passed by the opencrvs-core init-release (develop for the newest channel, otherwise the next unreleased patch branch); defaults to develop when run manually.'
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   release_workflow:
     runs-on: ubuntu-latest

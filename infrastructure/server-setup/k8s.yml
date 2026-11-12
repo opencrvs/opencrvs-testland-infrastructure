@@ -140,6 +140,16 @@
             - k8s
       tags:
         - k8s
+    - name: Create read-only operator role
+      include_tasks:
+        file: tasks/k8s/cluster-opencrvs-operator-role.yml
+        apply:
+          tags:
+            - users
+            - k8s
+      tags:
+        - users
+        - k8s
     - name: Distribute kubeconfig into users directory
       include_tasks:
         file: tasks/k8s/user-kubeconfig.yml

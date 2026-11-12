@@ -8,6 +8,7 @@
 
 ### Improvements
 
+- Provision Infrastructure, Deploy Dependencies and Deploy OpenCRVS now start with the new `Check private network` workflow. The workflow fails if `DOMAIN`, `KUBE_MASTER_NODE` or `KUBE_API_HOST` is reachable from the public internet. It tests TCP ports 22, 80 and 443 on `DOMAIN`, and ports 22, 80, 443, 6443, 2379, 2380, 10250, 10257, 10259, 179 and 5473 on the two Kubernetes hosts. To skip the check, set the `PRIVATE_NETWORK_REQUIRED` variable of the GitHub environment to `false` [#14225](https://github.com/opencrvs/opencrvs-core/issues/14225)
 - The manual approval of GitHub Actions workflows is now required unless the `APPROVAL_REQUIRED` environment variable is explicitly set to `false`, and the user who started a workflow can no longer approve it. The `GH_APPROVERS` variable must list at least one user other than the person starting the workflow (at least 3 for `Clear all environment data`, so 4 users in total)
 
 ### Bug fixes
@@ -17,6 +18,10 @@
 - Backup rotation on the backup server no longer runs as root. The script is installed root-owned as `/usr/local/sbin/opencrvs-rotate-backups.sh`, the cron job runs as `backup`, and directory names are matched strictly and passed to `rm` NUL-delimited.
 - Restore, Deploy OpenCRVS, Validate pre/post deploy, Reset 2FA and Start a new release workflows check their text inputs (backup date, image tags, stage, user name, release version and target branch) against the expected format and pass them to scripts as environment variables. The backup date check in Restore now reads the `backup-date` input, and the `reset-2fa.yml` playbook checks the user name as well
 - Pre-deploy validation in the Deploy OpenCRVS workflow now starts after the approval step
+- Two-factor authentication set-up is now done by sshd (`ForceCommand`, `/usr/local/sbin/opencrvs-require-2fa.sh`) and not by `.profile`. A user that has not set it up yet can only open an interactive login, where the set-up starts. Commands, `scp`, `sftp` and `ssh -T` ask the user to log in interactively first. The provisioning user, the backup user and users with `two_factor: false` are not affected. A script that logs in as any other user must use a user with `two_factor: false`
+- Users with the `operator` role no longer get sudo rules for `cat`, `less` and `tail`, which could be escalated to a root shell or used to read any file. Operators are now members of the `adm` group, so `less`, `tail` and `cp` read system logs in `/var/log` and the journal without sudo. Container logs are available with `kubectl logs`, and `/opt/opencrvs` is already readable by everyone. Access to `/data` through sudo is removed, and previously created operator sudoers files are deleted when the playbook runs
+- SSH keys of users are now exactly the `ssh_keys` of the inventory, so a removed key loses access when the playbook runs with the `users` tag. When `additional_keys_for_provisioning_user` is set, it replaces all keys of the provisioning user and must include the key the provisioning connects with. Removed users lose their sudo rules, `~/.ssh` and `~/.kube`
+- Only `admin` users get `cluster-admin` now. Operators get a read-only Kubernetes role: no secrets, `exec`, port-forward or changes. Kubernetes access of removed users is withdrawn when the playbook runs with the `users` tag. Client certificates are valid for 400 days (`kube_user_cert_days`), so run the playbook at least once in that time
 
 ## 2.1.0 Release
 
