@@ -118,4 +118,4 @@ arc_scale_set_max_runners: 1
 arc_scale_set_runner_resources: {}
 
 # Postgres: differencial backup support (pgBackRest) version
-pgbackrest_version: "2.59.0"
+pgbackrest_version: "2.60.1"
