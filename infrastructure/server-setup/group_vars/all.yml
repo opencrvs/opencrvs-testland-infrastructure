@@ -42,7 +42,7 @@ min_free_disk_percent: 10
 # - kubeadm
 # - kubelet
 # - kubectl
-kubernetes_version: "v1.36"
+kubernetes_version: "v1.37"
 
 # Kubernetes Eviction Policy Configuration
 #
