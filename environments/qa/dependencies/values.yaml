@@ -55,7 +55,6 @@ backup:
   backup_server_secret: backup-server-ssh-credentials
   backup_server_dir: /home/backup/qa
 
-
 # Restore configuration
 restore:
   enabled: false
@@ -63,3 +62,6 @@ restore:
   backup_server_secret: backup-server-ssh-credentials
   backup_server_dir: /home/backup/
   backup_encryption_secret: restore-encryption-secret
+
+filebeat:
+  custom_ilm_configmap: filebeat-ilm-config-qa
