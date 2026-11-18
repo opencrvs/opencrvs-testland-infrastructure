@@ -70,6 +70,16 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+      # Helm creates the namespace, but the configmaps must exist before the
+      # helm upgrade runs. So make sure that the namespace is present first.
+      - name: Apply custom configmaps
+        run: |
+          if [ ! -d environments/${ENV}/dependencies/configmaps ]; then
+            echo "No custom configmaps for environment ${ENV}, skipping"
+            exit 0
+          fi
+          kubectl create namespace "opencrvs-deps-${ENV}" --dry-run=client -o yaml | kubectl apply -f -
+          kubectl apply -n "opencrvs-deps-${ENV}" -f environments/${ENV}/dependencies/configmaps/
       # FIXME: remove BACKUP_HOST/RESTORE_HOST after v2.2
       # See: https://github.com/opencrvs/opencrvs-core/pull/13502
       - name: Install OpenCRVS dependencies
