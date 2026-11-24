@@ -23,3 +23,7 @@ influxdb:
 utilities:
   image:
     tag: v2.1.2
+
+monitoring:
+  logs:
+    retention_days: 7
