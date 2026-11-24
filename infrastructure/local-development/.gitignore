@@ -1,1 +1,2 @@
-local.linux.yml
+local.linux.yml.ssh/
+ssh-key*

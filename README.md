@@ -26,7 +26,6 @@ This document provides guidance on running OpenCRVS on server environments using
 # Additional resources
 
 - [Official documentation](https://documentation.opencrvs.org/)
-- [OpenCRVS Helm Chart README](https://github.com/opencrvs/opencrvs-helm-charts/blob/develop/charts/opencrvs-services/README.md)
-- [Dependencies Helm Chart README](https://github.com/opencrvs/opencrvs-helm-charts/blob/develop/charts/dependencies/README.md)
+- [OpenCRVS Helm Chart README](https://github.com/opencrvs/opencrvs-core/blob/develop/charts/opencrvs-services/README.md)
+- [Dependencies Helm Chart README](https://github.com/opencrvs/opencrvs-core/blob/develop/charts/dependencies/README.md)
 - [Cloud Infrastructure](https://github.com/opencrvs/cloud-infrastructure), Additional repository with terraform templates and other tools to deploy OpenCRVS on Cloud Providers.
-- [OpenCRVS Helm Charts](https://github.com/opencrvs/opencrvs-helm-charts), OpenCRVS helm charts for application deployment

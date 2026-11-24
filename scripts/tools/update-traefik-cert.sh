@@ -33,7 +33,7 @@ fi
 # Default namespace and secret name for Traefik TLS certs
 NAMESPACE="traefik"
 SECRET_NAME="traefik-cert"
-BACKUP_SECRET=$(mktemp)
+BACKUP_SECRET=""
 
 
 NEW_HASH=$(sha256sum "$CERT" | cut -d' ' -f1)
@@ -45,21 +45,21 @@ fi
 
 logger -t traefik-cert "Starting TLS secret update on secret $SECRET_NAME in namespace ${NAMESPACE}"
 
-kubectl get secret "$SECRET_NAME" -n "$NAMESPACE" -o yaml \
-  | grep -vE 'resourceVersion|uid|creationTimestamp' > "$BACKUP_SECRET" && \
-logger -t traefik-cert "Backed up existing secret to $BACKUP_SECRET" && \
-kubectl delete secret -n $NAMESPACE $SECRET_NAME --ignore-not-found && \
+BACKUP_SECRET=$(kubectl get secret "$SECRET_NAME" -n "$NAMESPACE" -o yaml \
+  | grep -vE 'resourceVersion|uid|creationTimestamp') && \
+logger -t traefik-cert "Backed up existing secret (in memory)" && \
+kubectl delete secret -n "$NAMESPACE" "$SECRET_NAME" --ignore-not-found && \
 logger -t traefik-cert "Deleted existing secret" || \
 logger -p user.warn -t traefik-cert "Failed to backup and delete existing secret. Trying to proceed with update..."
 
-if kubectl create secret tls $SECRET_NAME \
-  --cert=$CERT \
-  --key=$KEY \
-  -n $NAMESPACE \
+if kubectl create secret tls "$SECRET_NAME" \
+  --cert="$CERT" \
+  --key="$KEY" \
+  -n "$NAMESPACE" \
   --dry-run=client -o yaml | kubectl apply -f -; then
   logger -t traefik-cert "TLS secret updated successfully"
 else
   logger -p user.err -t traefik-cert "TLS secret update FAILED"
-  kubectl apply -f $BACKUP_SECRET
+  printf '%s\n' "$BACKUP_SECRET" | kubectl apply -f -
   logger -p user.warn -t traefik-cert "Restored previous secret version"
 fi

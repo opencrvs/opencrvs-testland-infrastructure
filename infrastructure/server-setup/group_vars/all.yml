@@ -42,7 +42,7 @@ min_free_disk_percent: 10
 # - kubeadm
 # - kubelet
 # - kubectl
-kubernetes_version: "v1.36"
+kubernetes_version: "v1.37"
 
 # Kubernetes Eviction Policy Configuration
 #
@@ -83,7 +83,7 @@ cluster_communication_ports:
 kube_api_allowed_cidrs: ""
 
 # Container Network Interface plugin: Calico version
-calico_version: "v3.32.1"
+calico_version: "v3.33.1"
 # CNI configuration (read-only after installation)
 pod_network_cidr: "192.168.0.0/16"
 
@@ -92,7 +92,7 @@ pod_network_cidr: "192.168.0.0/16"
 # see: 
 # - https://docs.ansible.com/projects/ansible/latest/collections/kubernetes/core/helm_module.html
 # - https://github.com/helm/helm/pull/31828
-helm_version: "3.21.3-1"
+helm_version: "3.22.0-1"
 # Helm diff improves kubernetes.core.helm idempotency checks.
 helm_diff_plugin_version: "v3.15.10"
 
@@ -118,4 +118,4 @@ arc_scale_set_max_runners: 1
 arc_scale_set_runner_resources: {}
 
 # Postgres: differencial backup support (pgBackRest) version
-pgbackrest_version: "2.59.0"
+pgbackrest_version: "2.60.1"
