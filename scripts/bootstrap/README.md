@@ -29,3 +29,22 @@ sudo systemctl stop actions.runner.*
 sudo rm -rf /opt/github-runner
 curl -s https://raw.githubusercontent.com/opencrvs/infrastructure/develop/scripts/bootstrap/node-runner.sh -o runner.sh && bash runner.sh
 ```
+
+## SSH host keys of the nodes
+
+The `Provision Infrastructure` and `Reset 2FA` workflows keep the SSH host keys of the nodes in
+`/home/provision/.ssh/known_hosts` on this runner (the file survives between runs, because the runner is persistent).
+A node is saved the first time the runner connects to it, and a node whose key differs from the saved one is not connected to.
+
+- After a node is rebuilt, or its SSH host keys are replaced on purpose, the run fails for that node with
+  `REMOTE HOST IDENTIFICATION HAS CHANGED`. Remove the old entry as the runner user and run the workflow again:
+  ```
+  sudo -u provision ssh-keygen -f /home/provision/.ssh/known_hosts -R <node address>
+  ```
+- To check a key before it is saved, fetch it, compare its fingerprint with the one that the provider or the console of the node shows,
+  and only then add it:
+  ```
+  ssh-keyscan -t ed25519 <node address> > node.key
+  ssh-keygen -lf node.key
+  sudo -u provision tee -a /home/provision/.ssh/known_hosts < node.key
+  ```
