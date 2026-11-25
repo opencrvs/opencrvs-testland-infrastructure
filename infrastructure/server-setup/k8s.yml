@@ -70,16 +70,22 @@
       tags:
           - k8s
 
+- name: Temporary UFW configuration for Kubernetes installation
+  hosts: master
+  become: yes
+  tags: k8s
+  tasks:
+    - name: "Setup UFW with allow by default"
+      ufw:
+        state: enabled
+        default: allow
+        direction: incoming
+
 - name: Kubernetes Master
   hosts: master
   tags: k8s
   tasks:
     - block:
-        - name: "Setup UFW with allow by default"
-          ufw:
-            state: enabled
-            default: allow
-            direction: incoming
         - name: Include master initialization
           include_tasks: tasks/k8s/init-master.yml
         - name: Include network plugin installation
