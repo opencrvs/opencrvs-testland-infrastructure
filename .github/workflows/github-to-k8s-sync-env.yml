@@ -203,42 +203,43 @@ jobs:
       - name: Save restore (backup source) environment secrets
         if: needs.get-restore-env-name.outputs.restore_env_name
         run: |
+          # Every value below is base64 encoded on a single line (tr -d '\n' drops base64's line
+          # wrapping) so that each KEY=value entry in the env file stays intact.
           RESTORE_ENCRYPTION_PASSPHRASE=$(echo "${{ needs.get-restore-encryption-key.outputs.secret_value }}" | base64 --decode | \
-          openssl enc -aes-256-cbc -pbkdf2 -d -salt -k "${{ secrets.GH_ENCRYPTION_PASSWORD }}" | base64)
+          openssl enc -aes-256-cbc -pbkdf2 -d -salt -k "${{ secrets.GH_ENCRYPTION_PASSWORD }}" | base64 | tr -d '\n')
           echo "::add-mask::$RESTORE_ENCRYPTION_PASSPHRASE"
 
-          BACKUP_HOST=$(echo -n ${{ needs.get-restore-host.outputs.host }} | base64)
+          BACKUP_HOST=$(echo -n ${{ needs.get-restore-host.outputs.host }} | base64 | tr -d '\n')
 
           BACKUP_HOST_PRIVATE_KEY=$(echo "${{ needs.get-restore-ssh-key.outputs.secret_value }}" | base64 --decode | \
           openssl enc -aes-256-cbc -pbkdf2 -d -salt -k "${{ secrets.GH_ENCRYPTION_PASSWORD }}" | base64 | tr -d ' \n')
           echo "::add-mask::$BACKUP_HOST_PRIVATE_KEY"
 
           BACKUP_SERVER_USER=$(echo "${{ needs.get-restore-ssh-user.outputs.secret_value }}" | base64 --decode | \
-          openssl enc -aes-256-cbc -pbkdf2 -d -salt -k "${{ secrets.GH_ENCRYPTION_PASSWORD }}" | base64)
+          openssl enc -aes-256-cbc -pbkdf2 -d -salt -k "${{ secrets.GH_ENCRYPTION_PASSWORD }}" | base64 | tr -d '\n')
           echo "::add-mask::$BACKUP_SERVER_USER"
 
           if [ -n "${{ needs.get-restore-postgres-admin-user.outputs.secret_value }}" ]; then
             POSTGRES_USER=$(echo "${{ needs.get-restore-postgres-admin-user.outputs.secret_value }}" | base64 --decode | \
-            openssl enc -aes-256-cbc -pbkdf2 -d -salt -k "${{ secrets.GH_ENCRYPTION_PASSWORD }}" | base64)
+            openssl enc -aes-256-cbc -pbkdf2 -d -salt -k "${{ secrets.GH_ENCRYPTION_PASSWORD }}" | base64 | tr -d '\n')
             echo "::add-mask::$POSTGRES_USER"
-            echo POSTGRES_USER=$POSTGRES_USER >> $env_file
+            printf 'POSTGRES_USER=%s\n' "$POSTGRES_USER" >> "$env_file"
           else
             echo "No postgres admin user found for restore environment, skipping"
           fi
           if [ -n "${{ needs.get-restore-postgres-admin-password.outputs.secret_value }}" ]; then
             POSTGRES_PASSWORD=$(echo "${{ needs.get-restore-postgres-admin-password.outputs.secret_value }}" | base64 --decode | \
-            openssl enc -aes-256-cbc -pbkdf2 -d -salt -k "${{ secrets.GH_ENCRYPTION_PASSWORD }}" | base64)
+            openssl enc -aes-256-cbc -pbkdf2 -d -salt -k "${{ secrets.GH_ENCRYPTION_PASSWORD }}" | base64 | tr -d '\n')
             echo "::add-mask::$POSTGRES_PASSWORD"
-            echo POSTGRES_PASSWORD=$POSTGRES_PASSWORD >> $env_file
+            printf 'POSTGRES_PASSWORD=%s\n' "$POSTGRES_PASSWORD" >> "$env_file"
           else
             echo "No postgres admin password found for restore environment, skipping"
           fi
 
-          echo RESTORE_ENCRYPTION_PASSPHRASE=$RESTORE_ENCRYPTION_PASSPHRASE >> $env_file
-          echo BACKUP_HOST=$BACKUP_HOST >> $env_file
-          echo BACKUP_HOST_PRIVATE_KEY=$BACKUP_HOST_PRIVATE_KEY >> $env_file
-          echo BACKUP_SERVER_USER=$BACKUP_SERVER_USER >> $env_file
-          grep BACKUP_HOST_PRIVATE_KEY $env_file || echo "No restore encryption passphrase to add"
+          printf 'RESTORE_ENCRYPTION_PASSPHRASE=%s\n' "$RESTORE_ENCRYPTION_PASSPHRASE" >> "$env_file"
+          printf 'BACKUP_HOST=%s\n' "$BACKUP_HOST" >> "$env_file"
+          printf 'BACKUP_HOST_PRIVATE_KEY=%s\n' "$BACKUP_HOST_PRIVATE_KEY" >> "$env_file"
+          printf 'BACKUP_SERVER_USER=%s\n' "$BACKUP_SERVER_USER" >> "$env_file"
 
       - name: Preprocess mapping into Secret YAMLs
         run: |
