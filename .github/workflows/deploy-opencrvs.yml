@@ -1,11 +1,11 @@
 name: 03. Deploy OpenCRVS
-run-name: "Deploy OpenCRVS on ${{ inputs.environment }} (core: ${{ inputs.core-image-tag }}, country: ${{ inputs.countryconfig-image-tag }})"
+run-name: "Deploy OpenCRVS on ${{ inputs.environment }} (core: ${{ inputs.core-image-tag }})"
 on:
   workflow_call:
     inputs:
+      # testland (the countryconfig image) ships in core and always carries the
+      # core tag, so a single core-image-tag drives both images.
       core-image-tag:
-        type: string
-      countryconfig-image-tag:
         type: string
       data-seed-enabled:
         type: boolean
@@ -14,17 +14,13 @@ on:
   workflow_dispatch:
     inputs:
       core-image-tag:
-        description: "Tag of the core image"
-        required: true
-        default: "v2.2.0"
-      countryconfig-image-tag:
-        description: "Tag of the countryconfig image"
+        description: "Tag of the core image (also tags the testland/countryconfig image)"
         required: true
         default: "v2.2.0"
       data-seed-enabled:
         description: "Data seeding during deployment"
         required: false
-        default: "false"
+        default: false
         type: boolean
       environment:
         description: "Target environment"
@@ -32,8 +28,11 @@ on:
         default: "development"
         type: choice
         options:
-          - ""
-
+          - e2e
+          - migration-production
+          - migration-staging
+          - qa
+          - qa-hotfix
 env:
   # Assuming chart version matches core image tag
   OPENCRVS_CHART_VERSION: "v2.2.0"
@@ -59,15 +58,13 @@ jobs:
     steps:
       - name: Validate inputs
         env:
+          # testland has no countryconfig-image-tag input: core-image-tag drives both images
           CORE_IMAGE_TAG: ${{ inputs.core-image-tag }}
-          COUNTRYCONFIG_IMAGE_TAG: ${{ inputs.countryconfig-image-tag }}
         run: |
-          for tag in "$CORE_IMAGE_TAG" "$COUNTRYCONFIG_IMAGE_TAG"; do
-            if [[ ! "$tag" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$ ]]; then
-              echo "❌ Error: Invalid image tag. Use up to 128 letters, digits, '.', '_' or '-'."
-              exit 1
-            fi
-          done
+          if [[ ! "$CORE_IMAGE_TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$ ]]; then
+            echo "❌ Error: Invalid image tag. Use up to 128 letters, digits, '.', '_' or '-'."
+            exit 1
+          fi
       # E2E_ENABLED is an environment variable, which job-level `if` conditions can't read
       - name: Read e2e configuration
         id: e2e-config
@@ -80,12 +77,11 @@ jobs:
           approvers: ${{ vars.GH_APPROVERS }}
           minimum-approvals: 1
           issue-title: >
-            Deploy (${{ inputs.environment }}): core: ${{ inputs.core-image-tag }} 
-            country config: ${{ inputs.countryconfig-image-tag }}
+            Deploy (${{ inputs.environment }}): core: ${{ inputs.core-image-tag }}
 
           issue-body: >
-            Please approve or deny the deployment of core: ${{ inputs.core-image-tag }} 
-            country config: ${{ inputs.countryconfig-image-tag }} to ${{ inputs.environment }} 
+            Please approve or deny the deployment of core: ${{ inputs.core-image-tag }}
+            to ${{ inputs.environment }}
             initiated from GitHub Actions by @${{ github.actor }}.
 
           exclude-workflow-initiator-as-approver: true
@@ -115,10 +111,14 @@ jobs:
       BRANCH: ${{ github.ref_name }}
       GITHUB_ACTOR: ${{ github.actor }}
       CORE_IMAGE_TAG: ${{ inputs.core-image-tag }}
-      COUNTRYCONFIG_IMAGE_TAG: ${{ inputs.countryconfig-image-tag }}
-      DATA_SEED_ENABLED: ${{ inputs.data-seed-enabled }}
-      # TODO: v2.4: Remove the DOCKERHUB_* fallbacks after all repositories ran the secrets migration
-      COUNTRYCONFIG_IMAGE_NAME: ${{ vars.REGISTRY_HOST || 'docker.io' }}/${{ secrets.REGISTRY_ORGANISATION || secrets.DOCKERHUB_ACCOUNT || 'opencrvs' }}/${{ secrets.REGISTRY_REPOSITORY || secrets.DOCKERHUB_REPO || 'ocrvs-farajaland' }}
+      # testland ships in core, so the countryconfig image carries the core tag
+      COUNTRYCONFIG_IMAGE_TAG: ${{ inputs.core-image-tag }}
+      # testland (packages/testland in opencrvs-core), published to ghcr by
+      # core's image matrix. No "/" in the name => inherits platform.repository
+      # (ghcr.io/opencrvs), resolving to ghcr.io/opencrvs/ocrvs-testland
+      # (public, no pull secret needed). The companion assets image resolves to
+      # ocrvs-testland:<tag>-assets.
+      COUNTRYCONFIG_IMAGE_NAME: ocrvs-testland
       SENDER_EMAIL_ADDRESS: ${{ secrets.SENDER_EMAIL_ADDRESS }}
       ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
     runs-on:
@@ -137,9 +137,9 @@ jobs:
           | Key | Value |
           |-----|-------|
           | Environment URL | https://$PUBLIC_DOMAIN |
-          | Core image tag | \`$CORE_IMAGE_TAG\` |
-          | Country config image | \`$COUNTRYCONFIG_IMAGE_TAG\` |
-          | Branch name | \`$BRANCH\` |
+          | Core image tag | \`${{ inputs.core-image-tag }}\` |
+          | Branch name | \`${{ github.ref_name }}\` |
+          | Reset environment | $RESET_MARK |
           EOF
           )
           echo "$SUMMARY" | sed 's/^          //' >> $GITHUB_STEP_SUMMARY
@@ -186,6 +186,8 @@ jobs:
             --set-string platform.tag="$CORE_IMAGE_TAG" \
             --set-string countryconfig.image.tag="$COUNTRYCONFIG_IMAGE_TAG" \
             --set countryconfig.image.name="$COUNTRYCONFIG_IMAGE_NAME" \
+            --set-string platform.imagePullPolicy=Always \
+            --set-string countryconfig.image.pullPolicy=Always \
             --set data_seed.env.ACTIVATE_USERS="${{ vars.ACTIVATE_USERS || 'false' }}" \
             --set data_seed.enabled="$DATA_SEED_ENABLED" \
             --set env.CONTENT_SECURITY_POLICY_WILDCARD="${{ vars.CONTENT_SECURITY_POLICY_WILDCARD }}" \
@@ -210,7 +212,7 @@ jobs:
           fi
           EMAIL_PAYLOAD="{
             \"subject\": \"$subject\",
-            \"html\": \"${subject} with images '$CORE_IMAGE_TAG' for core and '$COUNTRYCONFIG_IMAGE_TAG' for country config.<br/>Deployed by GitHub user: @${GITHUB_ACTOR}\",
+            \"html\": \"${subject} with image tag '$CORE_IMAGE_TAG'.<br/>Deployed by GitHub user: @${GITHUB_ACTOR}\",
             \"from\": \"${SENDER_EMAIL_ADDRESS}\",
             \"to\": \"${ALERT_EMAIL}\"
           }"

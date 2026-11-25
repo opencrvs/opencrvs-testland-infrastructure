@@ -9,11 +9,16 @@ on:
         default: "development"
         type: choice
         options:
-          - ""
+          - e2e
+          - migration-production
+          - migration-staging
+          - qa
+          - qa-hotfix
       data-cleanup-only:
         description: 'Run only the data-cleanup job'
         type: boolean
         default: false
+
   workflow_call:
     inputs:
       environment:
