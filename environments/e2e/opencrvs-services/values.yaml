@@ -21,29 +21,19 @@ hpa:
 
 env:
   APN_SERVICE_URL: "http://apm-server.opencrvs-deps-e2e.svc.cluster.local:8200"
-  MINIO_BUCKET: ocrvs
+  S3_BUCKET: ocrvs
 
-influxdb:
-  host: influxdb-0.influxdb.opencrvs-deps-e2e.svc.cluster.local
 
 elasticsearch:
-  auth_mode: auto
   host: elasticsearch.opencrvs-deps-e2e.svc.cluster.local
 
 s3:
-  auth_mode: use_secret
   host: rustfs-0.rustfs.opencrvs-deps-e2e.svc.cluster.local
 
-mongodb:
-  auth_mode: auto
-  host: mongodb-0.mongodb.opencrvs-deps-e2e.svc.cluster.local
-
 redis:
-  auth_mode: use_secret
   host: redis-0.redis.opencrvs-deps-e2e.svc.cluster.local
 
 postgres:
-  auth_mode: auto
   host: postgres-0.postgres.opencrvs-deps-e2e.svc.cluster.local
 
 platform:
