@@ -72,7 +72,9 @@ jobs:
       - name: Set variables for ansible
         id: ansible-variables
         run: |
-          JSON_WITHOUT_EMPTY=$(jq -nc '
+          umask 077
+          EXTRA_VARS_FILE=$(mktemp "$RUNNER_TEMP/extra-vars.XXXXXX")
+          jq -nc '
             $ENV
             | with_entries(select(.value | type == "string" and length > 0))
             | if has("backup_host_private_key") then
@@ -81,8 +83,8 @@ jobs:
               else
                 .
               end
-          ')
-          echo "EXTRA_VARS=$JSON_WITHOUT_EMPTY" >> $GITHUB_OUTPUT
+          ' > "$EXTRA_VARS_FILE"
+          echo "EXTRA_VARS_FILE=$EXTRA_VARS_FILE" >> $GITHUB_OUTPUT
         env:
           repository: ${{ github.repository }}
           encrypted_disk_size: ${{ vars.DISK_SPACE }}
@@ -116,8 +118,10 @@ jobs:
           ANSIBLE_FORCE_COLOR: "True"
           ENVIRONMENT: ${{ inputs.environment }}
           TAGS: ${{ inputs.tags }}
-          EXTRA_VARS: ${{ steps.ansible-variables.outputs.EXTRA_VARS }}
+          EXTRA_VARS_FILE: ${{ steps.ansible-variables.outputs.EXTRA_VARS_FILE }}
         run: |
+          trap 'rm -f "$EXTRA_VARS_FILE"' EXIT
+
           ansible-galaxy collection install -r galaxy-requirements.yml
 
           args=(--inventory "../../environments/$ENVIRONMENT/inventory.yml")
@@ -127,7 +131,7 @@ jobs:
           if [ -f "../../environments/$ENVIRONMENT/inventory-vars.yml" ]; then
             args+=(--extra-vars "@../../environments/$ENVIRONMENT/inventory-vars.yml")
           fi
-          args+=(--extra-vars "$EXTRA_VARS")
+          args+=(--extra-vars "@$EXTRA_VARS_FILE")
 
           # Add --verbose to get more output
           ansible-playbook playbook.yml "${args[@]}"
