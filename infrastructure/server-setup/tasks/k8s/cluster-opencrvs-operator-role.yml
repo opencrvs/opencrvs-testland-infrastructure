@@ -3,9 +3,14 @@
 # It is the built-in "view" role (no secrets, no pods/exec, attach or port-forward, no RBAC) plus a few
 # cluster-scoped read rules. Both parts are aggregated, so the role follows what Kubernetes adds to "view"
 # in future versions. The rules of an aggregated role are filled in by Kubernetes, so none are set here.
+#
+# Do not use /etc/kubernetes/admin.conf as `kubeconfig` here. It is readable by root only. When Ansible runs on the
+# master itself (`ansible_connection: local`, as in the inventory template), the kubernetes.core action plugin reads
+# the `kubeconfig` file in the Ansible process, as the unprivileged provisioning user, before `become` applies, so the
+# task fails with "Permission denied". The provisioning user's copy of admin.conf has the same access and is readable.
 - name: Create extra read rules for the operator role
   kubernetes.core.k8s:
-    kubeconfig: /etc/kubernetes/admin.conf
+    kubeconfig: /home/{{ provisioning_user }}/.kube/config
     state: present
     definition:
       apiVersion: rbac.authorization.k8s.io/v1
@@ -24,7 +29,7 @@
 
 - name: Create the operator role
   kubernetes.core.k8s:
-    kubeconfig: /etc/kubernetes/admin.conf
+    kubeconfig: /home/{{ provisioning_user }}/.kube/config
     state: present
     definition:
       apiVersion: rbac.authorization.k8s.io/v1
