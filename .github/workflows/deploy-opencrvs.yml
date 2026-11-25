@@ -53,6 +53,8 @@ jobs:
     environment: ${{ inputs.environment }}
     runs-on: ubuntu-26.04
     timeout-minutes: 60
+    outputs:
+      e2e-enabled: ${{ steps.e2e-config.outputs.enabled }}
     steps:
       - name: Validate inputs
         env:
@@ -63,6 +65,10 @@ jobs:
             echo "❌ Error: Invalid image tag. Use up to 128 letters, digits, '.', '_' or '-'."
             exit 1
           fi
+      # E2E_ENABLED is an environment variable, which job-level `if` conditions can't read
+      - name: Read e2e configuration
+        id: e2e-config
+        run: echo "enabled=${{ vars.E2E_ENABLED || 'false' }}" >> "$GITHUB_OUTPUT"
       - name: Waiting for manual approval
         if: ${{ vars.APPROVAL_REQUIRED != 'false' }}
         uses: trstringer/manual-approval@fa642940caf8412403569b28b2db4a1df08a83a3 # v1.13.1
@@ -226,4 +232,13 @@ jobs:
       environment: ${{ inputs.environment }}
       core-image-tag: ${{ inputs.core-image-tag }}
       stage: postdeploy
+    secrets: inherit
+  e2e:
+    needs:
+      - approve
+      - validate-postdeploy
+    if: needs.approve.outputs.e2e-enabled == 'true'
+    uses: ./.github/workflows/e2e.yml
+    with:
+      environment: ${{ inputs.environment }}
     secrets: inherit

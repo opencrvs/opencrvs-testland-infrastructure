@@ -114,7 +114,8 @@ jobs:
           ANSIBLE_PERSISTENT_COMMAND_TIMEOUT: 10
           ANSIBLE_SSH_TIMEOUT: 10
           ANSIBLE_SSH_RETRIES: 5
-          ANSIBLE_HOST_KEY_CHECKING: "False"
+          ANSIBLE_HOST_KEY_CHECKING: "True"
+          ANSIBLE_SSH_EXTRA_ARGS: "-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=~/.ssh/known_hosts"
           ANSIBLE_FORCE_COLOR: "True"
           ENVIRONMENT: ${{ inputs.environment }}
           TAGS: ${{ inputs.tags }}

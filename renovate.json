@@ -70,6 +70,17 @@
       "registryUrlTemplate": "https://apt.postgresql.org/pub/repos/apt?suite=noble-pgdg&components=main&binaryArch=amd64",
       "extractVersionTemplate": "^(?<version>\\d+\\.\\d+\\.\\d+)-",
       "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Pluto, downloaded from the FairwindsOps/pluto GitHub release by the pre-upgrade API deprecation check. The release tags have a v prefix, the variable does not",
+      "managerFilePatterns": ["/^infrastructure/server-setup/group_vars/all\\.yml$/"],
+      "matchStrings": ["\\bpluto_version:\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "pluto",
+      "packageNameTemplate": "FairwindsOps/pluto",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>\\d+\\.\\d+\\.\\d+)$",
+      "versioningTemplate": "semver"
     }
   ],
   "packageRules": [

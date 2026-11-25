@@ -119,3 +119,5 @@ arc_scale_set_runner_resources: {}
 
 # Postgres: differencial backup support (pgBackRest) version
 pgbackrest_version: "2.60.1"
+
+pluto_version: "5.24.6"

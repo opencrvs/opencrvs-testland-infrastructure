@@ -7,23 +7,21 @@
 #
 # Copyright (C) The OpenCRVS Authors located at https://github.com/opencrvs/opencrvs-core/blob/master/AUTHORS.
 
-# Gitflow release initialisation workflow.
+
+# Starts a release on its line's branch, release/<major>.<minor>.x. All the
+# patch releases of a line are made on that branch.
 #
-# Triggered by opencrvs-core's init-release workflow (or manually) with a
-# semver version string (e.g. 1.7.2).
+# opencrvs-core's init-release dispatches this workflow from develop after
+# each release, with the next patch version. It can also run manually.
 #
 # What this workflow does, in order:
-#   1. Derives the base branch:
-#        - patch release (z > 0)  → release/<x>.<y>.<z-1>
-#        - minor/major (z = 0)    → develop
-#   2. Creates a release branch (release/<version>) from the base branch.
-#   3. Bumps Chart.yaml and prepends a CHANGELOG section, then pushes
-#      both commits to the release branch.
-#   4. Opens a merge-back PR (release/<version> → develop) that already
-#      contains the version-bump commits, keeping develop in sync.
-#   5. Creates a draft GitHub release and immediately deletes the backing tag.
-#      The tag is (re-)created when the release is published manually, which is
-#      the canonical tag point — see release-steps.md in opencrvs-core.
+#   1. It finds the line branch. If the branch does not exist, it creates it:
+#        - from develop for the first release of a line (z = 0)
+#        - from the tag of the previous patch (z > 0)
+#   2. It bumps the version in package.json, the chart versions and the
+#      default image tags, and adds a "## <version>" section to CHANGELOG.md.
+#      It skips each change that is already there, so a re-run is safe.
+#   3. It creates a draft GitHub release.
 name: 11. Release - Start a new release
 on:
   workflow_dispatch:
@@ -32,82 +30,86 @@ on:
         type: string
         required: true
         description: 'Version to release'
+      # opencrvs-core sends this input to all its companion repos. This
+      # workflow finds the line branch from the version, so it does not use it.
       target_branch:
         type: string
         required: false
-        default: develop
-        description: 'Branch the release merges back into. Passed by the opencrvs-core init-release (develop for the newest channel, otherwise the next unreleased patch branch); defaults to develop when run manually.'
+        description: 'Not used. opencrvs-core sends it to all its companion repos.'
 
 permissions:
   contents: write
-  pull-requests: write
+
+env:
+  VERSION: ${{ inputs.version }}
 
 jobs:
   release_workflow:
     runs-on: ubuntu-latest
-    env:
-      VERSION: ${{ inputs.version }}
-      TARGET_BRANCH: ${{ inputs.target_branch }}
     steps:
-      # Derive the base branch from the version number.
-      #   - patch (z > 0): base = release/<x>.<y>.<z-1>
-      #   - minor/major (z = 0): base = develop
-      - name: Determine the Base Branch
-        id: get_base_branch
+      - name: Work out the release line
+        id: line
         run: |
-          version="$VERSION"
-
-          if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Invalid version was provided as input: $version" >&2
-            echo "Please follow semver format for versioning, e/g 1.7.2"
+          if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'$VERSION' is not a semver version, e.g. 2.1.4"
             exit 1
           fi
 
-          if [[ ! $TARGET_BRANCH =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]]; then
-            echo "Invalid target branch was provided as input" >&2
-            exit 1
-          fi
-
-          IFS='.' read -r x y z <<< "$version"
+          IFS='.' read -r x y z <<< "$VERSION"
+          line="$x.$y.x"
           if [ "$z" = "0" ]; then
-            base_branch="develop"
+            base=develop
           else
-            previous_version="$((x)).$((y)).$((z-1))"
-            base_branch="release/$previous_version"
+            base="v$x.$y.$((z - 1))"
           fi
-          echo "base_branch=$base_branch" >> $GITHUB_OUTPUT
 
-      # Full history is required so yarn can traverse the commit graph.
-      - name: Checkout ${{ steps.get_base_branch.outputs.base_branch }}
-        uses: actions/checkout@v7
+          echo "branch=release/$line" >> "$GITHUB_OUTPUT"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+
+      # Full history and the tags are required to cut a missing line branch
+      # from the tag of the previous patch.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ steps.get_base_branch.outputs.base_branch }}
+          ref: develop
           fetch-depth: 0
           token: ${{ secrets.INFRASTRUCTURE_WORKFLOW_TOKEN }}
 
-      - name: Check if release branch already exists
-        id: check_branch
-        run: |
-          if git ls-remote --exit-code --heads origin "release/$VERSION" > /dev/null 2>&1; then
-            echo "Branch release/$VERSION already exists, skipping creation."
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      # Create the release branch, bump helm chart version, and update the
-      # CHANGELOG — then push. The PRs are opened only after these commits
-      # exist on the remote, so both PRs immediately include the version-bump
-      # commits.
-      # Skipped if the release branch was already created by a previous run.
-      - name: Create release branch and update version numbers and CHANGELOG
-        if: steps.check_branch.outputs.exists == 'false'
+      - name: Configure the git identity
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git checkout -b "release/$VERSION"
-          # Bump helm chart version: sed instead of yq to preserve formatting and comments.
+      - name: Check out the line branch
+        env:
+          LINE_BRANCH: ${{ steps.line.outputs.branch }}
+          BASE: ${{ steps.line.outputs.base }}
+        run: |
+          if git ls-remote --exit-code --heads origin "$LINE_BRANCH" > /dev/null; then
+            git checkout -B "$LINE_BRANCH" "origin/$LINE_BRANCH"
+            exit 0
+          fi
+
+          if [ "$BASE" = "develop" ]; then
+            start=origin/develop
+          elif git rev-parse -q --verify "refs/tags/$BASE" > /dev/null; then
+            start="$BASE"
+          else
+            echo "::error::$LINE_BRANCH does not exist, and the tag $BASE of the previous patch does not exist. Create $LINE_BRANCH by hand."
+            exit 1
+          fi
+
+          echo "$LINE_BRANCH does not exist. It is created from $start."
+          git checkout -b "$LINE_BRANCH" "$start"
+
+      # sed changes only the lines that hold a version, so the rest of each
+      # file stays byte for byte the same.
+      - name: Bump the version and add a CHANGELOG section
+        env:
+          LINE_BRANCH: ${{ steps.line.outputs.branch }}
+        run: |
+          current=$(jq -r .version package.json)
+          sed -i "0,/\"version\": \"$current\"/s//\"version\": \"$VERSION\"/" package.json
           sed -i \
             -e "s/^\(\s*OPENCRVS_CHART_VERSION:\s*\).*/\1\"v$VERSION\"/" \
             -e '/core-image-tag:/,/default:/ s/default: ".*"/default: "'"v$VERSION"'"/' \
@@ -115,98 +117,48 @@ jobs:
           sed -i \
             -e "s/^\(\s*DEPENDENCIES_CHART_VERSION:\s*\).*/\1\"v$VERSION\"/" \
             .github/workflows/deploy-dependencies.yml
-          # Bump package.json without creating a git tag.
-          yarn version --new-version "$VERSION" --no-git-tag-version
-          git add .
-          git commit -m "chore: update version to $VERSION"
 
-          # Prepend a new "Release Candidate" section to the top of CHANGELOG.md.
-          # sed removes the existing "# Changelog" header (lines 1-2) so we can
-          # rewrite it with the new section underneath.
-          sed -i '1,2d' CHANGELOG.md
-          cp CHANGELOG.md COPY_CHANGELOG.md
-          {
-            echo "# Changelog"
-            echo ""
-            echo "## $VERSION Release Candidate"
-            echo ""
-            cat COPY_CHANGELOG.md
-          } > CHANGELOG.md
-          rm COPY_CHANGELOG.md
-          git add CHANGELOG.md
-          git commit -m "docs: update changelog for $VERSION release candidate"
-
-          git push origin "release/$VERSION"
-
-      # A dedicated merge-back branch is used for the develop PR so that any
-      # conflict-resolution commits do not land on the release branch itself.
-      - name: Create merge-back branch for develop PR
-        run: |
-          MERGEBACK_BRANCH="merge-back/release-$VERSION-to-develop"
-          if git ls-remote --exit-code --heads origin "$MERGEBACK_BRANCH" > /dev/null 2>&1; then
-            echo "Branch $MERGEBACK_BRANCH already exists, skipping."
+          if git diff --quiet; then
+            echo "The versions are already on $VERSION."
           else
-            git fetch origin "release/$VERSION"
-            git checkout -b "$MERGEBACK_BRANCH" "origin/release/$VERSION"
-            git push origin "$MERGEBACK_BRANCH"
+            git commit -am "chore: update version to $VERSION"
           fi
 
-      # One merge-back PR is created:
-      #
-      #   merge-back/release-<version>-to-develop → target_branch
-      #     Uses a dedicated branch so conflict-resolution commits stay off
-      #     the release branch. target_branch is develop for the newest
-      #     channel, otherwise the next unreleased patch branch.
-      #       - z=0 (base is develop): carries only the two bump commits, clean diff.
-      #       - z>0 (base is a prior release branch): also backports any patch fixes.
-      # Skipped if the PR already exists from a previous run.
-      - name: Create Pull Request
-        run: |
-          MERGEBACK_BRANCH="merge-back/release-$VERSION-to-develop"
-          TARGET="$TARGET_BRANCH"
-
-          EXISTING_PR=$(gh pr list --head "$MERGEBACK_BRANCH" --base "$TARGET" --state open --json number --jq '.[0].number // ""')
-          if [ -z "$EXISTING_PR" ]; then
-            gh pr create \
-              --base "$TARGET" \
-              --head "$MERGEBACK_BRANCH" \
-              --title "chore: merge release v$VERSION back to $TARGET" \
-              --body "Merge release branch back to $TARGET to include version bump and changelog updates."
+          # A section from the old flow can still say "Release Candidate".
+          if grep -qxE "## ${VERSION//./\\.}( Release Candidate)?" CHANGELOG.md; then
+            echo "CHANGELOG.md already has a $VERSION section."
           else
-            echo "PR $MERGEBACK_BRANCH → $TARGET already exists (#$EXISTING_PR), skipping."
+            # Insert "## <version>" right below the "# Changelog" header.
+            sed -i "0,/^# Changelog$/s//# Changelog\n\n## $VERSION/" CHANGELOG.md
+            if ! grep -qx "## $VERSION" CHANGELOG.md; then
+              echo "::error::CHANGELOG.md has no '# Changelog' line, so the $VERSION section was not added."
+              exit 1
+            fi
+            git commit -am "docs: add $VERSION to the changelog"
           fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Create a draft release so the release notes page exists immediately.
-      # The tag is deleted right after: it is (re-)created when the release is
-      # published manually, which is the canonical tag point for the release.
-      # See release-steps.md in opencrvs-core.
-      # Skipped if a release for this version already exists from a previous run.
+          git push origin "$LINE_BRANCH"
+
+      # The draft gives the release notes a place while the release is in
+      # progress. The workflow deletes its tag again, so that no tag points at
+      # code that is not released. The tag is created again when the release
+      # is published. See release-steps.md in opencrvs-core.
       - name: Create a draft release
-        run: |
-          TAG_NAME="v$VERSION"
-          if gh release view "$TAG_NAME" > /dev/null 2>&1; then
-            echo "Release $TAG_NAME already exists, skipping."
-          else
-            TITLE="OpenCRVS - $TAG_NAME"
-            NOTES="Release notes for version $VERSION"
-            git tag "$TAG_NAME"
-            git push origin "$TAG_NAME"
-            gh release create "$TAG_NAME" \
-              --title "$TITLE" \
-              --notes "$NOTES" \
-              --draft
-          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Delete the tag
+          LINE_BRANCH: ${{ steps.line.outputs.branch }}
         run: |
-          TAG_NAME="v$VERSION"
-          if git ls-remote --exit-code --tags origin "$TAG_NAME" > /dev/null 2>&1; then
-            git tag -d "$TAG_NAME" 2>/dev/null || true
-            git push origin ":refs/tags/$TAG_NAME"
-          else
-            echo "Tag $TAG_NAME does not exist on remote, skipping."
+          TAG="v$VERSION"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG already exists, skipping."
+            exit 0
           fi
+
+          git tag "$TAG" "origin/$LINE_BRANCH"
+          git push origin "$TAG"
+          gh release create "$TAG" --draft \
+            --title "OpenCRVS - $TAG" \
+            --notes "Release notes for version $VERSION"
+
+          git tag -d "$TAG"
+          git push origin ":refs/tags/$TAG"

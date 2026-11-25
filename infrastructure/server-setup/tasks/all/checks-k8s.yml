@@ -89,7 +89,7 @@
 
     - name: Install pluto for API deprecation check
       ansible.builtin.get_url:
-        url: "https://github.com/FairwindsOps/pluto/releases/download/v5.19.0/pluto_5.19.0_linux_amd64.tar.gz"
+        url: "https://github.com/FairwindsOps/pluto/releases/download/v{{ pluto_version }}/pluto_{{ pluto_version }}_linux_amd64.tar.gz"
         dest: "/tmp/pluto.tar.gz"
         mode: '0644'
 

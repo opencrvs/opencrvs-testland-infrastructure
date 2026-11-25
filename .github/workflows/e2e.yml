@@ -1,0 +1,129 @@
+name: 12. Run E2E tests
+run-name: "Run E2E tests on ${{ inputs.environment }}"
+# Runs Playwright tests from the country configuration repository (COUNTRYCONFIG_REPOSITORY)
+# against a deployed environment. Called by deploy-opencrvs.yml when E2E_ENABLED=true.
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      countryconfig-branch:
+        type: string
+        required: false
+        default: ""
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "development"
+        type: choice
+        options:
+          - ""
+      countryconfig-branch:
+        description: "Branch, tag or commit of the country config repository (default: repository default branch)"
+        required: false
+        default: ""
+        type: string
+
+jobs:
+  e2e:
+    name: Run E2E tests
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    concurrency:
+      group: e2e-${{ inputs.environment }}
+      cancel-in-progress: true
+    steps:
+      - name: Verify configuration
+        env:
+          COUNTRYCONFIG_REPOSITORY: ${{ vars.COUNTRYCONFIG_REPOSITORY }}
+          DOMAIN: ${{ vars.DOMAIN }}
+        run: |
+          if [ -z "$COUNTRYCONFIG_REPOSITORY" ]; then
+            echo "::error::Repository variable COUNTRYCONFIG_REPOSITORY is not set. Run 'environment:init' and enable e2e tests to configure it."
+            exit 1
+          fi
+
+      - name: Checkout country config repository
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ vars.COUNTRYCONFIG_REPOSITORY }}
+          ref: ${{ inputs.countryconfig-branch }}
+          token: ${{ secrets.GH_TOKEN || github.token }}
+
+      - name: Verify Playwright configuration
+        env:
+          COUNTRYCONFIG_REPOSITORY: ${{ vars.COUNTRYCONFIG_REPOSITORY }}
+        run: |
+          if [ ! -f playwright.config.ts ]; then
+            echo "::error::No playwright.config.ts found in the root of $COUNTRYCONFIG_REPOSITORY. Upgrade the country configuration repository to a version that includes the e2e tests."
+            exit 1
+          fi
+
+      # Country configs forked before v2.1 still use yarn
+      - name: Detect package manager
+        id: package-manager
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            echo "name=pnpm" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=yarn" >> "$GITHUB_OUTPUT"
+          fi
+
+      # pnpm version is pinned by the packageManager field in the country config package.json
+      - name: Setup pnpm
+        if: steps.package-manager.outputs.name == 'pnpm'
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js from .nvmrc
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: ${{ steps.package-manager.outputs.name }}
+
+      - name: Install dependencies
+        run: |
+          if [ "${{ steps.package-manager.outputs.name }}" = "pnpm" ]; then
+            pnpm install --frozen-lockfile --ignore-workspace
+          else
+            yarn install --frozen-lockfile
+          fi
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # Runs Playwright directly: the `e2e` package.json script may open the interactive UI
+      - name: Run Playwright tests
+        env:
+          CI: "true"
+          DOMAIN: ${{ vars.DOMAIN }}
+        run: |
+          # Trust Let's Encrypt staging certificates for API requests made from Node.js
+          export NODE_EXTRA_CA_CERTS=/tmp/letsencrypt-stg-root-x1.pem
+          curl -s -o $NODE_EXTRA_CA_CERTS https://letsencrypt.org/certs/staging/letsencrypt-stg-root-x1.pem
+          npx playwright test
+      # The playwright-ctrf-json-reporter writes to ./ctrf in the country config repository root
+      - id: ctrf_check
+        if: '!cancelled()'
+        run: |
+          [ -d ctrf ] && \
+           echo "ctrf=true" >> $GITHUB_OUTPUT || \
+           echo "ctrf=false" >> $GITHUB_OUTPUT
+      - name: Publish Test Report
+        uses: ctrf-io/github-test-reporter@v1
+        with:
+          report-path: './ctrf/*.json'
+          github-report: true
+          summary-report: true
+          test-report: true
+        if: "!cancelled() && steps.ctrf_check.outputs.ctrf == 'true'"
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v7
+        if: "!cancelled()"
+        with:
+          name: playwright-report-${{ inputs.environment }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: playwright-report/
+          retention-days: 7
