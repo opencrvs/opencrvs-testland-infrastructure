@@ -69,6 +69,13 @@ persistence:
 
 env:
   MASTRACODE_PUBLIC_URL: https://factory.opencrvs.dev
+  # Automated agent runs at the same time, and extra slots for replies from
+  # people in GitHub. Factory's defaults (10 and 2) are too much for one node.
+  MASTRACODE_DISPATCH_MAX_IN_FLIGHT: '2'
+  MASTRACODE_DISPATCH_MAX_INTERACTIVE_IN_FLIGHT: '1'
+  # At start, the server deletes session folders that had no change for this
+  # many days. 0 turns the cleanup off.
+  FACTORY_SESSION_MAX_IDLE_DAYS: '7'
 
 secrets:
   factory-secrets:
