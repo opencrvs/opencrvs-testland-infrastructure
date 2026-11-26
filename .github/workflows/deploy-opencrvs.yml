@@ -11,6 +11,11 @@ on:
         type: boolean
       environment:
         type: string
+      # Callers that run their own E2E suite after deploying set this to skip
+      # the country config E2E tests (e2e.yml) even when E2E_ENABLED=true.
+      skip-e2e:
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       core-image-tag:
@@ -237,7 +242,7 @@ jobs:
     needs:
       - approve
       - validate-postdeploy
-    if: needs.approve.outputs.e2e-enabled == 'true'
+    if: needs.approve.outputs.e2e-enabled == 'true' && !inputs.skip-e2e
     uses: ./.github/workflows/e2e.yml
     with:
       environment: ${{ inputs.environment }}
