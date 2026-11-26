@@ -1,0 +1,61 @@
+# Postgres values for the generic `opencrvs-addon` chart. This is the
+# database of Mastra Factory (see factory.yaml). Factory also stores vectors
+# here, so the image has the pgvector extension.
+#
+# Install into the "factory" namespace with:
+#   helm upgrade --install postgres oci://ghcr.io/opencrvs/opencrvs-addon \
+#     --version v2.2.0 -n factory -f postgres.yaml
+#
+# Prerequisite: the secret "factory-db-credentials". README.md in this folder
+# shows how to create it.
+
+app_name: postgres
+
+service:
+  enabled: true
+  port: 5432
+  container_port: 5432
+
+# Postgres uses its own wire protocol, not HTTP. It has no ingress and only
+# the Factory pod can connect to it (see network-policy.yaml).
+ingress:
+  enabled: false
+
+imagePullSecrets: []
+
+image:
+  name: pgvector/pgvector
+  tag: '0.8.1-pg17'
+
+node_selector:
+  role: data2
+
+resources:
+  requests:
+    memory: '512Mi'
+    cpu: '250m'
+  limits:
+    memory: '2Gi'
+    cpu: '1'
+
+# Postgres has no HTTP endpoint, and the chart only supports HTTP probes.
+probes:
+  enabled: false
+
+# Do not put this under /data/metabase or another folder that the server
+# setup playbook deletes.
+persistence:
+  enabled: true
+  mountPath: /var/lib/postgresql/data
+  storage_type: host_path
+  host_data_path: /data/factory-postgres
+
+env:
+  POSTGRES_DB: factory
+  # Postgres does not initialize a data folder that is not empty, so the data
+  # goes into a subfolder of the volume.
+  PGDATA: /var/lib/postgresql/data/pgdata
+secrets:
+  factory-db-credentials:
+    - POSTGRES_USER
+    - POSTGRES_PASSWORD
