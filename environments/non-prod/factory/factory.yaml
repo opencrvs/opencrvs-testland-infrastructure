@@ -1,0 +1,86 @@
+# Mastra Factory values for the generic `opencrvs-addon` chart.
+#
+# Factory turns GitHub issues into plans and pull requests with coding agents.
+# The image comes from https://github.com/opencrvs/factory.
+# README.md in this folder has the full setup: DNS, WorkOS, GitHub App and
+# secrets. Install into the "factory" namespace with:
+#   helm upgrade --install factory oci://ghcr.io/opencrvs/opencrvs-addon \
+#     --version v2.2.0 -n factory -f factory.yaml
+
+app_name: factory
+hostname: factory.opencrvs.dev
+
+service:
+  enabled: true
+  port: 80
+  container_port: 4111
+
+ingress:
+  enabled: true
+  ssl_enabled: true
+  tls_resolver: letsencrypt
+
+imagePullSecrets: []
+
+# With the tag "latest", Kubernetes pulls the image again on each restart.
+# Use a short commit SHA tag to pin one version.
+image:
+  name: ghcr.io/opencrvs/factory
+  tag: latest
+
+# The persistent volume is a hostPath, so the pod must stay on the same node.
+node_selector:
+  role: data2
+
+# The agents run in this container. They clone opencrvs-core and run pnpm
+# install, builds and tests, so the limits are high.
+resources:
+  requests:
+    memory: '4Gi'
+    cpu: '1'
+  limits:
+    memory: '12Gi'
+    cpu: '4'
+
+# The probes have long timeouts. A failed liveness probe restarts the pod and
+# stops the agent sessions that run in it.
+probes:
+  enabled: true
+  liveness:
+    path: /health
+    periodSeconds: 30
+    timeoutSeconds: 10
+  readiness:
+    path: /health
+    periodSeconds: 10
+    timeoutSeconds: 5
+  startup:
+    path: /health
+    periodSeconds: 10
+    timeoutSeconds: 5
+
+# HOME is /data/home in the image. The session directories, git config and
+# the pnpm store are kept on the node at /data/factory.
+persistence:
+  enabled: true
+  mountPath: /data
+  storage_type: host_path
+  host_data_path: /data/factory
+
+env:
+  MASTRACODE_PUBLIC_URL: https://factory.opencrvs.dev
+
+secrets:
+  factory-secrets:
+    - DATABASE_URL
+    - FACTORY_CREDENTIAL_ENCRYPTION_KEY
+    - WORKOS_API_KEY
+    - WORKOS_CLIENT_ID
+    - WORKOS_COOKIE_PASSWORD
+  factory-github-app:
+    - GITHUB_APP_ID
+    - GITHUB_APP_PRIVATE_KEY
+    - GITHUB_APP_CLIENT_ID
+    - GITHUB_APP_CLIENT_SECRET
+    - GITHUB_APP_SLUG
+    - GITHUB_APP_WEBHOOK_SECRET

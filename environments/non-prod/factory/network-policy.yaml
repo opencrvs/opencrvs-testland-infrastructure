@@ -1,0 +1,78 @@
+# Network policies for the "factory" namespace. Apply with:
+#   kubectl apply -n factory -f network-policy.yaml
+#
+# The Factory agents run commands inside the Factory pod. These policies stop
+# the agents from connecting to other services in the non-prod cluster, such
+# as the QA environments. The pod can still use DNS, its own Postgres and the
+# public internet (GitHub, npm, the model provider).
+#
+# The cluster uses Calico, which enforces NetworkPolicy. The pod network is
+# 192.168.0.0/16, and the nodes and services use addresses in 10.0.0.0/8.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: factory
+spec:
+  podSelector:
+    matchLabels:
+      app: factory
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Traefik uses the host network, so the requests come from node
+    # addresses, not from a pod. The port is public through Traefik anyway.
+    - ports:
+        - protocol: TCP
+          port: 4111
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+              - 100.64.0.0/10
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: factory
+      ports:
+        - protocol: TCP
+          port: 5432
+  # Postgres needs no outgoing connections.
+  egress: []
