@@ -40,7 +40,17 @@ Add an `A` record for `factory.opencrvs.dev`. Point it to the same public addres
 
 ### 3. GitHub App
 
-In the `opencrvs` organization settings, open **Developer settings → GitHub Apps → New GitHub App**:
+You must be an owner or a GitHub App manager of the `opencrvs` organization.
+
+**With the script (recommended).** `create-github-app.mjs` sends all the settings below to GitHub. You click **Create GitHub App** one time, and the script writes the credentials into the `factory-github-app` secret. It does not print them. Run it on your own computer, from the repository root:
+
+```bash
+node environments/non-prod/factory/create-github-app.mjs
+```
+
+Open the page that it prints and follow it. The script writes the secret to `~/factory-github-app.secret.json` (mode 600). Apply that file with `kubectl apply -f` after you create the namespace (step 4), and then delete the file. If your `kubectl` can reach the cluster and the namespace exists, use `--apply` to send the secret to the current context directly. Do all of this in one hour, because the code from GitHub stops working after that. `--help` shows the other options.
+
+**By hand.** In the organization settings, open **Developer settings → GitHub Apps → New GitHub App**:
 
 | Setting                 | Value                                                  |
 | ----------------------- | ------------------------------------------------------ |
@@ -49,11 +59,15 @@ In the `opencrvs` organization settings, open **Developer settings → GitHub Ap
 | Setup URL               | `https://factory.opencrvs.dev/auth/github/callback`    |
 | Webhook URL             | `https://factory.opencrvs.dev/web/github/webhook`      |
 | Webhook secret          | Output of `openssl rand -hex 32`                       |
-| Repository permissions  | Contents: read and write. Issues: read and write. Pull requests: read and write. Metadata: read-only. |
+| Repository permissions  | Contents, Issues, Pull requests: read and write. Metadata, Checks, Commit statuses, Actions: read-only. |
 | Events                  | Issues, Issue comment, Pull request, Pull request review, Pull request review comment |
 | Where it can be installed | Only on this account                                 |
 
-Then generate a client secret and a private key. Install the App on `opencrvs/opencrvs-core` only.
+Then generate a client secret and a private key. The last command in step 4 makes the secret from them.
+
+Factory's reviews use `gh pr checks`, which needs the read-only access to Checks, Commit statuses and Actions.
+
+After you create the App, install it on `opencrvs/opencrvs-core` only.
 
 Pull requests from the App have a bot as author. Some opencrvs-core workflows skip bot pull requests: the feature environment deploy with E2E (`deploy-to-feature-environment.yml`) and the Claude review (`claude-review.yml`).
 
@@ -84,7 +98,13 @@ kubectl create secret generic factory-secrets \
 
 Keep a backup of `FACTORY_CREDENTIAL_ENCRYPTION_KEY`. Factory uses it to encrypt the model keys and integration secrets in the database. Without the same key, Factory cannot read them.
 
-Factory changes `\n` in `GITHUB_APP_PRIVATE_KEY` to new lines, so the next command puts the key on one line:
+If you made the GitHub App with the script, apply its file now and skip the next command:
+
+```bash
+kubectl apply -f ~/factory-github-app.secret.json && rm ~/factory-github-app.secret.json
+```
+
+If you made the GitHub App by hand, use the next command. Factory changes `\n` in `GITHUB_APP_PRIVATE_KEY` to new lines, so the command puts the key on one line:
 
 ```bash
 kubectl create secret generic factory-github-app \
