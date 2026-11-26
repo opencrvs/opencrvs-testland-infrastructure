@@ -114,6 +114,10 @@ jobs:
       core-image-tag: ${{ github.event.client_payload.core-image-tag || inputs.core-image-tag }}
       environment: "e2e"
       data-seed-enabled: true
+      # The `test` shards below run core's packages/testland suite after
+      # data-seed, so skip the opencrvs-testland repo suite (e2e.yml) that
+      # deploy-opencrvs.yml would otherwise run inside this job.
+      skip-e2e: true
     secrets: inherit
 
   data-seed:
