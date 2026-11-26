@@ -124,6 +124,15 @@ kubectl -n factory logs deployment/factory -f
 3. Open **Settings → Work Intake → GitHub issues**, turn on **Sync GitHub issues** and select the repository.
 4. Change the intake rules so that only issues with the `AI Friendly` label get a card.
 
+## Load and disk
+
+The agents share the node with other workloads, so `factory.yaml` limits them:
+
+- `MASTRACODE_DISPATCH_MAX_IN_FLIGHT` (2) and `MASTRACODE_DISPATCH_MAX_INTERACTIVE_IN_FLIGHT` (1) limit the agent runs that Factory starts at the same time. Some runs continue outside these slots, so the limit is not exact.
+- Each session keeps a checkout of the repository in `/data/factory/home/.mastracode/web/sandboxes`, and Factory does not delete it. When the server starts, it deletes each session folder that had no change for `FACTORY_SESSION_MAX_IDLE_DAYS` (7) days. Changes that an agent did not push are lost with the folder.
+
+The cleanup runs only at start. To free disk space, restart the deployment.
+
 ## Update
 
 A push to `main` in `opencrvs/factory` publishes a new `latest` image. To use it, restart the deployment:
