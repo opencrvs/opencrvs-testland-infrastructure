@@ -49,6 +49,12 @@ events:
   env:
     TWO_FA_ENABLED: false
 
+countryconfig:
+  secrets:
+    country-config-client:
+      - COUNTRY_CONFIG_CLIENT_ID
+      - COUNTRY_CONFIG_CLIENT_SECRET
+
 dashboards:
   use_default_credentials: true
   enabled: true
