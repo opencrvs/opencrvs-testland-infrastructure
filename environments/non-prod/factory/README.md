@@ -144,6 +144,27 @@ kubectl -n factory logs deployment/factory -f
 3. Open **Settings → Work Intake → GitHub issues**, turn on **Sync GitHub issues** and select the repository.
 4. Change the intake rules so that only issues with the `AI Friendly` label get a card.
 
+## MCP clients
+
+Factory has an MCP server. With it, Claude, Claude Code, ChatGPT and other MCP clients can read and change cards, start sessions and answer approvals. Each person signs in with their own WorkOS user and gets the same rights as in the web UI. So the person must be a member of the WorkOS organization.
+
+The endpoint is `https://factory.opencrvs.dev/web/factory/projects/<project id>/mcp`. The project id is the part after `/factories/` in the Factory URL.
+
+To turn it on:
+
+1. In the WorkOS dashboard, use the environment that the `WORKOS_*` secrets come from. Open **Connect → Configuration**:
+   - Turn on **Client ID Metadata Document** and **Dynamic Client Registration**. An MCP client uses one of them to register itself.
+   - Add the endpoint URL as a **Resource Indicator**. WorkOS refuses a sign-in for a resource that is not in this list.
+2. In `factory.yaml`, set `MASTRA_FACTORY_MCP_AUTHORIZATION_SERVER` to the AuthKit domain of that environment. The AuthKit domain is the host of the WorkOS sign-in page, for example `https://spirited-invention-88-staging.authkit.app`.
+3. Install the chart again (step 5). The restart stops the agent sessions that run at that time.
+
+To connect a client:
+
+- **claude.ai and Claude Desktop:** open **Settings → Connectors → Add custom connector** and paste the endpoint URL.
+- **Claude Code:** run `claude mcp add --transport http factory <endpoint URL>`, and then sign in from `/mcp`.
+
+Factory checks the signature of the access token and the organization membership of the user. It does not check the audience or the issuer of the token.
+
 ## Load and disk
 
 The agents share the node with other workloads, so `factory.yaml` limits them:

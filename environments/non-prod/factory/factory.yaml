@@ -76,6 +76,11 @@ env:
   # At start, the server deletes session folders that had no change for this
   # many days. 0 turns the cleanup off.
   FACTORY_SESSION_MAX_IDLE_DAYS: '7'
+  # MCP clients such as Claude sign in to the Factory MCP server at this
+  # WorkOS AuthKit domain (README.md, "MCP clients"). It must be the domain of
+  # the WorkOS environment that the WORKOS_* secrets come from. It is not a
+  # secret.
+  MASTRA_FACTORY_MCP_AUTHORIZATION_SERVER: https://spirited-invention-88-staging.authkit.app
 
 secrets:
   factory-secrets:
