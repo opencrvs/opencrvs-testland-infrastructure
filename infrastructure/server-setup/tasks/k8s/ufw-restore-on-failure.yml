@@ -1,0 +1,22 @@
+# Rescue handler to allow ssh connections, see full rule set in ufw.yml
+- name: Allow SSH before restoring default deny
+  become: true
+  ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+    comment: "Managed by OpenCRVS Ansible"
+
+- name: Restore UFW default deny
+  become: true
+  ufw:
+    state: enabled
+    default: deny
+    direction: incoming
+
+- name: Fail after restoring the firewall
+  ansible.builtin.fail:
+    msg: >-
+      {{ ansible_failed_task.name | default('A provisioning task') }} failed on {{ inventory_hostname }}:
+      {{ ansible_failed_result.msg | default('see the task output above') }}
+      (UFW default deny was restored)

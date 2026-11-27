@@ -85,12 +85,16 @@
   hosts: master
   tags: k8s
   tasks:
-    - name: Include master initialization
-      include_tasks: tasks/k8s/init-master.yml
-    - name: Include network plugin installation
-      include_tasks: tasks/k8s/install-network-plugin.yml
-    - name: Upgrade cluster
-      include_tasks: tasks/k8s/upgrade-k8s-master.yml
+    - block:
+        - name: Include master initialization
+          include_tasks: tasks/k8s/init-master.yml
+        - name: Include network plugin installation
+          include_tasks: tasks/k8s/install-network-plugin.yml
+        - name: Upgrade cluster
+          include_tasks: tasks/k8s/upgrade-k8s-master.yml
+      rescue:
+        - name: Restore UFW default deny after failure
+          include_tasks: tasks/k8s/ufw-restore-on-failure.yml
 
 - name: Kubernetes Worker Nodes
   hosts: workers
@@ -103,6 +107,21 @@
       when: single_node == false
     - name: Upgrade cluster
       include_tasks: tasks/k8s/upgrade-k8s-workers.yml
+
+- name: Configure firewall
+  hosts: master, workers
+  become: yes
+  gather_facts: no
+  tags: k8s
+  tasks:
+    - name: Configure UFW rules
+      include_tasks:
+        file: tasks/k8s/ufw.yml
+        apply:
+          tags:
+            - k8s
+      tags:
+        - k8s
 
 - name: Configure k8s cluster components
   hosts: master
@@ -168,14 +187,6 @@
     - name: Setup kubelet eviction policies
       include_tasks:
         file: tasks/k8s/eviction-policy.yml
-        apply:
-          tags:
-            - k8s
-      tags:
-        - k8s
-    - name: Configure UFW rules
-      include_tasks:
-        file: tasks/k8s/ufw.yml
         apply:
           tags:
             - k8s

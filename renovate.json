@@ -81,6 +81,28 @@
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^v(?<version>\\d+\\.\\d+\\.\\d+)$",
       "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "metrics-server, installed from components.yaml of the kubernetes-sigs/metrics-server GitHub release. The repository also publishes Helm chart releases (metrics-server-helm-chart-*), only the v tags of the application are used. The variable keeps the v prefix, the download URL needs it",
+      "managerFilePatterns": ["/^infrastructure/server-setup/group_vars/all\\.yml$/"],
+      "matchStrings": ["\\bmetrics_server_version:\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "metrics-server",
+      "packageNameTemplate": "kubernetes-sigs/metrics-server",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^(?<version>v\\d+\\.\\d+\\.\\d+)$",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "k9s, installed from the deb package of the derailed/k9s GitHub release. The variable keeps the v prefix, the download URL needs it",
+      "managerFilePatterns": ["/^infrastructure/server-setup/group_vars/all\\.yml$/"],
+      "matchStrings": ["\\bk9s_version:\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "k9s",
+      "packageNameTemplate": "derailed/k9s",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^(?<version>v\\d+\\.\\d+\\.\\d+)$",
+      "versioningTemplate": "semver"
     }
   ],
   "packageRules": [

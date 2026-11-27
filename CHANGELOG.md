@@ -11,6 +11,9 @@
 - Provision Infrastructure, Deploy Dependencies and Deploy OpenCRVS now start with the new `Check private network` workflow. The workflow fails if `DOMAIN`, `KUBE_MASTER_NODE` or `KUBE_API_HOST` is reachable from the public internet. It tests TCP ports 22, 80 and 443 on `DOMAIN`, and ports 22, 80, 443, 6443, 2379, 2380, 10250, 10257, 10259, 179 and 5473 on the two Kubernetes hosts. To skip the check, set the `PRIVATE_NETWORK_REQUIRED` variable of the GitHub environment to `false` [#14225](https://github.com/opencrvs/opencrvs-core/issues/14225)
 - The manual approval of GitHub Actions workflows is now required unless the `APPROVAL_REQUIRED` environment variable is explicitly set to `false`, and the user who started a workflow can no longer approve it. The `GH_APPROVERS` variable must list at least one user other than the person starting the workflow (at least 3 for `Clear all environment data`, so 4 users in total)
 - Provision Infrastructure and Reset 2FA now check the SSH host keys of the nodes in `~/.ssh/known_hosts` of the runner user (`provision`).
+- The Kubernetes runner image is now pinned to a release tag of the runner repository (`arc_scale_set_runner_version: v2.2`) instead of `latest`, so changes on its `develop` branch no longer reach the clusters before a release. The image of the tag is rebuilt weekly, so base image and OS package updates still arrive
+- metrics-server is installed at a pinned version (`metrics_server_version`, v0.9.1), it no longer installs the latest release at provision time. Renovate proposes new versions
+- k9s is installed at a pinned version (`k9s_version`, v0.51.0), it no longer installs the latest release at provision time. Renovate proposes new versions
 
 ### Bug fixes
 

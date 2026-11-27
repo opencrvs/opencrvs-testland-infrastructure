@@ -1,13 +1,8 @@
 # TODO: Make Kubernetes components
-- name: Download manifest for metrics server
-  get_url:
-    url: https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
-    dest: /tmp/metrics-server.yaml
-    mode: '0644'
-
-- name: Install metrics server on control plane
+# kubectl downloads the manifest of the pinned release itself, there is no file to protect
+- name: Install metrics server {{ metrics_server_version }} on control plane
   shell: |
-    kubectl apply -f /tmp/metrics-server.yaml
+    kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/download/{{ metrics_server_version }}/components.yaml
   become: yes
   environment:
     KUBECONFIG: /home/{{ provisioning_user }}/.kube/config
@@ -40,8 +35,3 @@
   debug:
     msg: "Metrics server is installed and running: {{ metrics_server_status.stdout }}"
   when: metrics_server_status.rc == 0
-
-- name: Clean up temporary files
-  file:
-    path: /tmp/metrics-server.yaml
-    state: absent

@@ -6,118 +6,123 @@
 - name: "Show UFW status before changes"
   shell: ufw status numbered
 
-- name: Delete existing UFW rules managed by Ansible
-  shell: |
-    ufw status numbered \
-      | grep 'Managed by OpenCRVS Ansible' \
-      | grep -vE '\b(22|80|443)(/tcp|/udp)?\b' \
-      | tac \
-      | sed -n 's/^\[\s*\([0-9]\+\)\].*/\1/p' \
-      | while read rule; do
-          echo "Deleting UFW rule #$rule"
-          ufw --force delete "$rule"
-        done
-  changed_when: true
+- block:
+    - name: Delete existing UFW rules managed by Ansible
+      shell: |
+        ufw status numbered \
+          | grep 'Managed by OpenCRVS Ansible' \
+          | grep -vE '\b(22|80|443)(/tcp|/udp)?\b' \
+          | tac \
+          | sed -n 's/^\[\s*\([0-9]\+\)\].*/\1/p' \
+          | while read rule; do
+              echo "Deleting UFW rule #$rule"
+              ufw --force delete "$rule"
+            done
+      changed_when: true
 
-- name: "Allow Traefik (ports 80, 443) only on master"
-  ufw:
-    rule: allow
-    port: "{{ item }}"
-    proto: tcp
-    comment: "Managed by OpenCRVS Ansible"
-  loop: [80, 443]
-  when: "'master' in group_names"
+    - name: "Allow Traefik (ports 80, 443) only on master"
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+        comment: "Managed by OpenCRVS Ansible"
+      loop: [80, 443]
+      when: "'master' in group_names"
 
-- name: "Allow ssh connections"
-  ufw:
-    rule: allow
-    port: "22"
-    proto: tcp
-    comment: "Managed by OpenCRVS Ansible"
+    - name: "Allow ssh connections"
+      ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+        comment: "Managed by OpenCRVS Ansible"
 
-- name: Get Kubernetes nodes from control plane
-  kubernetes.core.k8s_info:
-    api_version: v1
-    kind: Node
-    kubeconfig: /home/{{ ansible_user }}/.kube/config
-  register: k8s_nodes
-  when: "'master' in group_names"
+    - name: Get Kubernetes nodes from control plane
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Node
+        kubeconfig: /home/{{ ansible_user }}/.kube/config
+      register: k8s_nodes
+      when: "'master' in group_names"
 
-- name: Build cluster node IP list
-  set_fact:
-    cluster_node_ips: >-
-      {{
-        k8s_nodes.resources
-        | map(attribute='status.addresses')
-        | map('selectattr', 'type', 'equalto', 'InternalIP')
-        | map('first')
-        | map(attribute='address')
-        | list
-      }}
-  when: "'master' in group_names"
+    - name: Build cluster node IP list
+      set_fact:
+        cluster_node_ips: >-
+          {{
+            k8s_nodes.resources
+            | map(attribute='status.addresses')
+            | map('selectattr', 'type', 'equalto', 'InternalIP')
+            | map('first')
+            | map(attribute='address')
+            | list
+          }}
+      when: "'master' in group_names"
 
-- name: Show cluster node IPs
-  debug:
-    var: cluster_node_ips
-  when: "'master' in group_names"
+    - name: Show cluster node IPs
+      debug:
+        var: cluster_node_ips
+      when: "'master' in group_names"
 
-- name: Build Kubernetes API allowed CIDRs
-  set_fact:
-    kubernetes_api_allowed_sources: >-
-      {{
-        (
-          cluster_node_ips
-          | map('regex_replace', '$', '/32')
+    - name: Build Kubernetes API allowed CIDRs
+      set_fact:
+        kubernetes_api_allowed_sources: >-
+          {{
+            (
+              cluster_node_ips
+              | map('regex_replace', '$', '/32')
+              | list
+            )
+            +
+            (
+              kube_api_allowed_cidrs | default('') | split(',')
+              | map('trim')
+              | reject('equalto', '')
+              | list
+            )
+          }}
+      when: "'master' in group_names"
+
+    - name: Allow Kubernetes API server access
+      ufw:
+        rule: allow
+        port: "6443"
+        proto: tcp
+        from_ip: "{{ item }}"
+        comment: "Managed by OpenCRVS Ansible"
+      loop: "{{ kubernetes_api_allowed_sources }}"
+      when: "'master' in group_names"
+
+    # Kube and overlay ports for all nodes, adjust as needed
+    - name: "Allow cluster communication ports"
+      ufw:
+        rule: allow
+        port: "{{ item.0.port }}"
+        proto: "{{ item.0.proto }}"
+        from_ip: "{{ item.1 }}/32"
+        comment: "Managed by OpenCRVS Ansible"
+      loop: >-
+        {{
+          cluster_communication_ports
+          | product(hostvars[groups['master'][0]].cluster_node_ips)
           | list
-        )
-        +
-        (
-          kube_api_allowed_cidrs | default('') | split(',')
-          | map('trim')
-          | reject('equalto', '')
-          | list
-        )
-      }}
-  when: "'master' in group_names"
+        }}
+      ignore_errors: yes
 
-- name: Allow Kubernetes API server access
-  ufw:
-    rule: allow
-    port: "6443"
-    proto: tcp
-    from_ip: "{{ item }}"
-    comment: "Managed by OpenCRVS Ansible"
-  loop: "{{ kubernetes_api_allowed_sources }}"
-  when: "'master' in group_names"
+    - name: "Allow traffic on Calico interfaces"
+      community.general.ufw:
+        rule: allow
+        interface_in: "{{ item }}"
+        comment: "Managed by OpenCRVS Ansible"
+      loop:
+        - cali+
+        - vxlan.calico
+      ignore_errors: yes
 
-# Kube and overlay ports for all nodes, adjust as needed
-- name: "Allow cluster communication ports"
-  ufw:
-    rule: allow
-    port: "{{ item.0.port }}"
-    proto: "{{ item.0.proto }}"
-    from_ip: "{{ item.1 }}/32"
-    comment: "Managed by OpenCRVS Ansible"
-  loop: >-
-    {{
-      cluster_communication_ports
-      | product(hostvars[groups['master'][0]].cluster_node_ips)
-      | list
-    }}
-  ignore_errors: yes
+    - name: "Enable UFW with deny by default"
+      ufw:
+        state: enabled
+        default: deny
+        direction: incoming
 
-- name: "Allow traffic on Calico interfaces"
-  community.general.ufw:
-    rule: allow
-    interface_in: "{{ item }}"
-    comment: "Managed by OpenCRVS Ansible"
-  loop:
-    - cali+
-    - vxlan.calico
-  ignore_errors: yes
-
-- name: "Enable UFW with deny by default"
-  ufw:
-    state: enabled
-    default: deny
-    direction: incoming
+  rescue:
+    - name: Restore UFW default deny after failure
+      include_tasks: ufw-restore-on-failure.yml
