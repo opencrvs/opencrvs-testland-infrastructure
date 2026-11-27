@@ -103,6 +103,12 @@ cert_manager_version: "v1.21.0"
 # Values are read from environments/<env>/traefik/values.yaml
 traefik_chart_version: "41.0.2"
 
+# metrics-server: https://github.com/kubernetes-sigs/metrics-server
+metrics_server_version: "v0.9.1"
+
+# k9s: https://github.com/derailed/k9s
+k9s_version: "v0.51.0"
+
 # Kubernetes self-hosted runner (official gha-runner-scale-set with ephemeral runners)
 # Override per environment in environments/<env>/inventory-vars.yml (passed to ansible as --extra-vars)
 # Version of both the controller and the scale set charts, they must match
@@ -110,7 +116,7 @@ arc_scale_set_chart_version: "0.15.0"
 arc_controller_release_name: "arc"
 # Image built by https://github.com/opencrvs/github-opencrvs-self-hosted-runner
 arc_scale_set_runner_image: "ghcr.io/opencrvs/opencrvs-github-ephemeral-runner"
-arc_scale_set_runner_version: "latest"
+arc_scale_set_runner_version: "v2.2"
 # Jobs run one by one per cluster. One idle runner is kept warm.
 arc_scale_set_min_runners: 1
 arc_scale_set_max_runners: 1
